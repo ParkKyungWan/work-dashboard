@@ -3,18 +3,18 @@
 "use client";
 
 type StickyNoteHeaderProps = {
-  title: string;
   content: string;
   postItColor: string;
+
   isDocked: boolean;
   isPreview: boolean;
+
   onCollapse: () => void;
   onDeleteRequest: () => void;
   onOpen: () => void;
 };
 
 export default function StickyNoteHeader({
-  title,
   content,
   postItColor,
   isDocked,
@@ -23,51 +23,48 @@ export default function StickyNoteHeader({
   onDeleteRequest,
   onOpen,
 }: StickyNoteHeaderProps) {
+  if (isDocked || isPreview) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex h-8 w-full items-center px-2 text-left text-xs text-neutral-700"
+        style={{
+          backgroundColor: postItColor,
+        }}
+        title="스티커 열기"
+        aria-label="스티커 열기"
+      >
+        <span className="truncate">{content.trim() || "빈 메모"}</span>
+      </button>
+    );
+  }
+
   return (
     <div
-      className="relative flex h-[150px] items-center justify-center border-b border-neutral-900"
-      style={{ backgroundColor: postItColor }}
-      onClick={isPreview ? onOpen : undefined}
+      className="flex h-7 w-full items-center justify-end gap-2 px-2 text-xs"
+      style={{
+        backgroundColor: postItColor,
+      }}
     >
-      {!isDocked && (
-        <div className="absolute right-2 top-2 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onCollapse();
-            }}
-            className="text-lg font-extrabold text-red-600"
-            title="오른쪽으로 숨기기"
-          >
-            숨기기
-          </button>
+      <button
+        type="button"
+        onClick={onCollapse}
+        className="leading-none text-neutral-700 hover:text-neutral-950"
+        title="스티커 숨기기"
+      >
+        숨기기
+      </button>
 
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDeleteRequest();
-            }}
-            className="text-2xl font-extrabold text-red-600"
-            title="완전히 삭제"
-          >
-            X
-          </button>
-        </div>
-      )}
-
-      <div className="px-4 text-center">
-        <div className="text-2xl font-extrabold text-black">
-          {isDocked ? "필기" : title}
-        </div>
-
-        {isPreview && (
-          <p className="mt-2 line-clamp-2 text-xs text-neutral-700">
-            {content || "내용 없음"}
-          </p>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={onDeleteRequest}
+        className="leading-none text-neutral-700 hover:text-red-600"
+        title="스티커 삭제"
+        aria-label="스티커 삭제"
+      >
+        X
+      </button>
     </div>
   );
 }

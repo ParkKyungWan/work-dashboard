@@ -3,22 +3,25 @@
 "use client";
 
 type StickyNoteCollapseBarProps = {
-  onCollapse: () => void;
+  collapsed: boolean;
+  onToggle: () => void;
 };
 
 export default function StickyNoteCollapseBar({
-  onCollapse,
+  collapsed,
+  onToggle,
 }: StickyNoteCollapseBarProps) {
   return (
     <button
       type="button"
       onClick={(event) => {
         event.stopPropagation();
-        onCollapse();
+        onToggle();
       }}
-      className="flex h-[22px] w-full items-center justify-center border-b border-neutral-900 bg-white text-xs"
+      className="flex h-[22px] w-full shrink-0 items-center justify-center border-y border-neutral-900 bg-white text-xs text-neutral-700 hover:bg-neutral-100"
+      title={collapsed ? "설정 영역 펼치기" : "설정 영역 접기"}
     >
-      ∨ 숨기기
+      {collapsed ? "∧ 올리기" : "∨ 접기"}
     </button>
   );
 }

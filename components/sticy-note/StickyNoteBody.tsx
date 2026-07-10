@@ -4,12 +4,24 @@
 
 type StickyNoteBodyProps = {
   content: string;
+  onContentChange: (content: string) => void;
 };
 
-export default function StickyNoteBody({ content }: StickyNoteBodyProps) {
+export default function StickyNoteBody({
+  content,
+  onContentChange,
+}: StickyNoteBodyProps) {
   return (
-    <div className="border-t border-neutral-200 bg-white p-2 text-xs text-neutral-700">
-      {content || "메모 내용이 없습니다."}
+    <div className="h-full bg-transparent p-2">
+      <textarea
+        value={content}
+        onChange={(event) => onContentChange(event.target.value)}
+        placeholder="메모 내용을 입력하세요."
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
+        className="h-full w-full resize-none border-none bg-transparent text-xs text-neutral-800 outline-none"
+      />
     </div>
   );
 }
