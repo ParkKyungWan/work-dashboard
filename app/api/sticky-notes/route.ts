@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     x?: number;
     y?: number;
     dockOrder?: number;
+    startDate?: string;
   } = {};
 
   try {
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
     x: body.x ?? null,
     y: body.y ?? null,
     dockOrder: body.dockOrder,
+    startDate: body.startDate,
   });
 
   return NextResponse.json(note);

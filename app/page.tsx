@@ -1,6 +1,6 @@
 // app/work-log/page.tsx
 
-import StickyNoteLayer from "@/components/sticy-note/StickyNoteLayer";
+import StickyNoteLayer from "@/components/sticky-note/StickyNoteLayer";
 
 export default function WorkLogPage() {
   return (

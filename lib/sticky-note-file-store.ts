@@ -6,7 +6,7 @@ import path from "path";
 import type {
   StickyNote,
   StickyNoteIndexItem,
-} from "@/components/sticy-note/sticky-note.types";
+} from "@/components/sticky-note/sticky-note.types";
 
 const ROOT_DIR = path.join(process.cwd(), "data", "sticky-notes");
 const NOTES_DIR = path.join(ROOT_DIR, "notes");
@@ -45,10 +45,32 @@ function randomBetween(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function endOfToday() {
-  const date = new Date();
+function toLocalDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function createLocalDateFromKey(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
+}
+
+function createStartOfLocalDayISOString(dateKey: string) {
+  const date = createLocalDateFromKey(dateKey);
+  date.setHours(0, 0, 0, 0);
+
+  return date.toISOString();
+}
+
+function createEndOfLocalDayISOString(dateKey: string) {
+  const date = createLocalDateFromKey(dateKey);
   date.setHours(23, 59, 59, 999);
-  return date;
+
+  return date.toISOString();
 }
 
 function toIndexItem(note: StickyNote): StickyNoteIndexItem {
@@ -105,26 +127,30 @@ async function removeIndexItem(id: string) {
   await writeIndex(nextIndexItems);
 }
 
+/**
+ * 선택한 날짜 기준으로 해당 스티커가 보여야 하는지 판단합니다.
+ *
+ * 기준:
+ * - 스티커 시작일 <= 선택 날짜의 끝
+ * - 스티커 종료일이 없거나, 종료일 >= 선택 날짜의 시작
+ */
 function isDateInRange(
   targetDateString: string,
   startDateString: string,
   expiresAtString: string | null,
 ) {
-  const target = new Date(targetDateString);
-  target.setHours(12, 0, 0, 0);
+  const targetStart = createLocalDateFromKey(targetDateString);
+  targetStart.setHours(0, 0, 0, 0);
+
+  const targetEnd = createLocalDateFromKey(targetDateString);
+  targetEnd.setHours(23, 59, 59, 999);
 
   const start = new Date(startDateString);
-  start.setHours(0, 0, 0, 0);
-
   const end = expiresAtString ? new Date(expiresAtString) : null;
 
-  if (end) {
-    end.setHours(23, 59, 59, 999);
-  }
-
   return (
-    target.getTime() >= start.getTime() &&
-    (!end || target.getTime() <= end.getTime())
+    start.getTime() <= targetEnd.getTime() &&
+    (!end || end.getTime() >= targetStart.getTime())
   );
 }
 
@@ -132,9 +158,14 @@ function isNowInRange(note: StickyNoteIndexItem) {
   const now = Date.now();
 
   const start = new Date(note.startDate).getTime();
-  if (start > now) return false;
 
-  if (!note.expiresAt) return true;
+  if (start > now) {
+    return false;
+  }
+
+  if (!note.expiresAt) {
+    return true;
+  }
 
   return new Date(note.expiresAt).getTime() >= now;
 }
@@ -169,6 +200,7 @@ export async function readAllStickyNotes(): Promise<StickyNote[]> {
   const notes = await Promise.all(
     jsonFiles.map(async (file) => {
       const content = await readFile(path.join(NOTES_DIR, file), "utf-8");
+
       return JSON.parse(content) as StickyNote;
     }),
   );
@@ -218,6 +250,10 @@ export async function readStickyNotesByDate(
   const notes = await readStickyNotesByIds(ids);
 
   return notes.sort((a, b) => {
+    if (a.pinned !== b.pinned) {
+      return a.pinned ? -1 : 1;
+    }
+
     if (a.dockOrder !== b.dockOrder) {
       return a.dockOrder - b.dockOrder;
     }
@@ -226,12 +262,11 @@ export async function readStickyNotesByDate(
   });
 }
 
-// lib/sticky-note-file-store.ts
-
 export async function createStickyNote(options?: {
   x?: number | null;
   y?: number | null;
   dockOrder?: number;
+  startDate?: string;
 }): Promise<StickyNote> {
   await ensureStore();
 
@@ -240,14 +275,27 @@ export async function createStickyNote(options?: {
 
   const id = createStickyNoteId();
 
+  /**
+   * 기준 날짜.
+   *
+   * 프론트에서 viewDate를 넘기면 그 날짜 기준으로 생성합니다.
+   * 없으면 실제 오늘 기준으로 생성합니다.
+   */
+  const baseDateKey = options?.startDate ?? toLocalDateKey(new Date());
+
   const note: StickyNote = {
     id,
     title: "필기 스티커",
     content: "",
     status: "ACTIVE",
 
-    startDate: now,
-    expiresAt: endOfToday().toISOString(),
+    /**
+     * 기본 정책:
+     * 새 스티커는 당일 스티커입니다.
+     * 필요하면 사용자가 직접 기간을 연장합니다.
+     */
+    startDate: createStartOfLocalDayISOString(baseDateKey),
+    expiresAt: createEndOfLocalDayISOString(baseDateKey),
 
     dockSide: "RIGHT",
     dockOrder: options?.dockOrder ?? existingIndexItems.length,
@@ -260,9 +308,13 @@ export async function createStickyNote(options?: {
     collapsed: false,
     pinned: false,
 
-    colorHue: 50,
-    colorSaturation: 65,
-    colorLightness: randomBetween(72, 88),
+    /**
+     * 노란색 계열은 유지하고,
+     * 명도/채도 중심으로 랜덤하게 조절합니다.
+     */
+    colorHue: randomBetween(47, 53),
+    colorSaturation: randomBetween(55, 85),
+    colorLightness: randomBetween(70, 90),
 
     dailyLogId: null,
     archivedAt: null,
@@ -298,7 +350,9 @@ export async function updateStickyNote(
 ): Promise<StickyNote | null> {
   const note = await readStickyNoteById(id);
 
-  if (!note) return null;
+  if (!note) {
+    return null;
+  }
 
   const updatedNote: StickyNote = {
     ...note,

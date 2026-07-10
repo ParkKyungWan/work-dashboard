@@ -77,43 +77,60 @@ const toLocalDateKey = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const createLocalDateFromKey = (dateKey: string) => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
+};
+
+const formatMenuDateLabel = (dateKey: string) => {
+  const date = createLocalDateFromKey(dateKey);
+
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+
+  return `${year}.${month}.${day} (${weekday})`;
+};
+
 const isSameLocalDay = (dateString: string, targetDate: Date) => {
   return toLocalDateKey(new Date(dateString)) === toLocalDateKey(targetDate);
 };
 
-const getEndOfYesterdayISOString = () => {
-  const date = new Date();
+const getEndOfPreviousDayISOString = (baseDate: Date) => {
+  const date = new Date(baseDate);
   date.setDate(date.getDate() - 1);
   date.setHours(23, 59, 59, 999);
 
   return date.toISOString();
 };
 
-const isTodayIncludedInNotePeriod = (note: StickyNote) => {
-  const now = new Date();
+const isDateIncludedInNotePeriod = (note: StickyNote, baseDate: Date) => {
+  const baseDateStart = new Date(baseDate);
+  baseDateStart.setHours(0, 0, 0, 0);
 
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-
-  const todayEnd = new Date(now);
-  todayEnd.setHours(23, 59, 59, 999);
+  const baseDateEnd = new Date(baseDate);
+  baseDateEnd.setHours(23, 59, 59, 999);
 
   const start = new Date(note.startDate);
   const end = note.expiresAt ? new Date(note.expiresAt) : null;
 
   return (
-    start.getTime() <= todayEnd.getTime() &&
-    (!end || end.getTime() >= todayStart.getTime())
+    start.getTime() <= baseDateEnd.getTime() &&
+    (!end || end.getTime() >= baseDateStart.getTime())
   );
 };
 
 export default function StickyNoteLayer({
   scope = "work-log",
 }: StickyNoteLayerProps) {
+  const [viewDate, setViewDate] = useState(() => toLocalDateKey(new Date()));
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   const patchNote = useCallback(
     async (
@@ -165,9 +182,12 @@ export default function StickyNoteLayer({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/sticky-notes/active", {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/sticky-notes/by-date?date=${viewDate}`,
+        {
+          cache: "no-store",
+        },
+      );
 
       if (!response.ok) {
         console.error("스티커 조회 실패");
@@ -206,7 +226,7 @@ export default function StickyNoteLayer({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [viewDate]);
 
   useEffect(() => {
     void fetchActiveNotes();
@@ -305,6 +325,7 @@ export default function StickyNoteLayer({
       }
 
       setIsMenuOpen(false);
+      setIsDatePickerOpen(false);
     };
 
     window.addEventListener("pointerdown", handlePointerDown);
@@ -320,6 +341,16 @@ export default function StickyNoteLayer({
         note.id === updatedNote.id ? updatedNote : note,
       ),
     );
+  };
+
+  const handleViewDateChange = (nextDate: string) => {
+    if (!nextDate) {
+      return;
+    }
+
+    setViewDate(nextDate);
+    setIsDatePickerOpen(false);
+    setIsMenuOpen(false);
   };
 
   const handleCreate = async () => {
@@ -352,6 +383,7 @@ export default function StickyNoteLayer({
           x: fittedPosition.x,
           y: fittedPosition.y,
           dockOrder: notes.length,
+          startDate: viewDate,
         }),
       });
 
@@ -364,6 +396,7 @@ export default function StickyNoteLayer({
 
       setNotes((previousNotes) => [createdNote, ...previousNotes]);
       setIsMenuOpen(false);
+      setIsDatePickerOpen(false);
     } catch (error) {
       console.error("스티커 생성 중 오류:", error);
     }
@@ -374,6 +407,7 @@ export default function StickyNoteLayer({
 
     if (targetNotes.length === 0) {
       setIsMenuOpen(false);
+      setIsDatePickerOpen(false);
       return;
     }
 
@@ -399,27 +433,29 @@ export default function StickyNoteLayer({
     });
 
     setIsMenuOpen(false);
+    setIsDatePickerOpen(false);
   };
 
   const handleClearHiddenNotes = async () => {
-    const today = new Date();
-    const endOfYesterday = getEndOfYesterdayISOString();
+    const baseDate = createLocalDateFromKey(viewDate);
+    const endOfPreviousDay = getEndOfPreviousDayISOString(baseDate);
 
     const hiddenNotes = notes.filter((note) => note.collapsed);
 
     if (hiddenNotes.length === 0) {
       setIsMenuOpen(false);
+      setIsDatePickerOpen(false);
       return;
     }
 
     const notesToDelete = hiddenNotes.filter((note) =>
-      isSameLocalDay(note.startDate, today),
+      isSameLocalDay(note.startDate, baseDate),
     );
 
     const notesToExpire = hiddenNotes.filter((note) => {
-      const startsToday = isSameLocalDay(note.startDate, today);
+      const startsOnViewDate = isSameLocalDay(note.startDate, baseDate);
 
-      return !startsToday && isTodayIncludedInNotePeriod(note);
+      return !startsOnViewDate && isDateIncludedInNotePeriod(note, baseDate);
     });
 
     const deletedResults = await Promise.all(
@@ -433,7 +469,7 @@ export default function StickyNoteLayer({
     const updatedNotes = await Promise.all(
       notesToExpire.map((note) =>
         patchNote(note.id, {
-          expiresAt: endOfYesterday,
+          expiresAt: endOfPreviousDay,
           collapsed: true,
         }),
       ),
@@ -451,6 +487,7 @@ export default function StickyNoteLayer({
     );
 
     setIsMenuOpen(false);
+    setIsDatePickerOpen(false);
   };
 
   const handleCollapse = async (id: string) => {
@@ -641,11 +678,13 @@ export default function StickyNoteLayer({
       return;
     }
 
-    const isExpired = updatedNote.expiresAt
-      ? new Date(updatedNote.expiresAt).getTime() < Date.now()
-      : false;
+    const baseDate = createLocalDateFromKey(viewDate);
+    const isExpiredForViewDate =
+      updatedNote.expiresAt &&
+      new Date(updatedNote.expiresAt).getTime() <
+        new Date(baseDate.setHours(0, 0, 0, 0)).getTime();
 
-    if (isExpired) {
+    if (isExpiredForViewDate) {
       setNotes((previousNotes) =>
         previousNotes.filter((note) => note.id !== id),
       );
@@ -699,7 +738,32 @@ export default function StickyNoteLayer({
           </button>
 
           {isMenuOpen && (
-            <div className="absolute right-0 top-12 w-40 overflow-hidden rounded-md border border-neutral-900 bg-white text-xs shadow-xl">
+            <div className="absolute right-0 top-12 w-48 overflow-hidden rounded-md border border-neutral-900 bg-white text-xs shadow-xl">
+              <div className="border-b border-neutral-200 bg-neutral-50">
+                <button
+                  type="button"
+                  onClick={() => setIsDatePickerOpen((previous) => !previous)}
+                  className="block w-full px-3 py-2 text-center font-semibold text-neutral-800 hover:bg-neutral-100"
+                  title="날짜 선택"
+                  aria-label="날짜 선택"
+                >
+                  &lt; {formatMenuDateLabel(viewDate)} &gt;
+                </button>
+
+                {isDatePickerOpen && (
+                  <div className="border-t border-neutral-200 px-3 py-2">
+                    <input
+                      type="date"
+                      value={viewDate}
+                      onChange={(event) =>
+                        handleViewDateChange(event.target.value)
+                      }
+                      className="w-full rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-800 outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={handleCreate}
