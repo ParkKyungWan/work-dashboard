@@ -16,23 +16,12 @@ const DEFAULT_STICKY_NOTE_HEIGHT = 360;
 const VIEWPORT_PADDING = 16;
 const TOP_SAFE_AREA = 72;
 
-/**
- * 기존 스티커 보정 기준.
- *
- * 0.15 = 스티커의 15%만 화면에 보여도 허용.
- * 너무 조금 보이면 찾기 어려우니까 10%보다 약간 넉넉하게 둠.
- */
 const MIN_VISIBLE_RATIO = 0.15;
 
 const clamp = (value: number, min: number, max: number) => {
   return Math.min(Math.max(value, min), max);
 };
 
-/**
- * 새 스티커 생성용.
- *
- * 새로 만드는 스티커는 화면 안쪽에 깔끔하게 들어와야 함.
- */
 const fitNewNotePositionToViewport = (
   x: number,
   y: number,
@@ -57,16 +46,6 @@ const fitNewNotePositionToViewport = (
   };
 };
 
-/**
- * 기존 스티커 보정용.
- *
- * 브라우저 크기가 줄거나, 숨김 해제하거나, 드래그 후 저장할 때 사용.
- *
- * 정책:
- * - 스티커 전체가 화면 안에 있을 필요 없음
- * - 스티커의 일정 비율만 화면에 남아 있으면 그대로 허용
- * - 거의 사라질 정도로 벗어났을 때만 안쪽으로 살짝 당김
- */
 const fitExistingNotePositionToViewport = (
   x: number,
   y: number,
@@ -90,12 +69,51 @@ const fitExistingNotePositionToViewport = (
   };
 };
 
+const toLocalDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const isSameLocalDay = (dateString: string, targetDate: Date) => {
+  return toLocalDateKey(new Date(dateString)) === toLocalDateKey(targetDate);
+};
+
+const getEndOfYesterdayISOString = () => {
+  const date = new Date();
+  date.setDate(date.getDate() - 1);
+  date.setHours(23, 59, 59, 999);
+
+  return date.toISOString();
+};
+
+const isTodayIncludedInNotePeriod = (note: StickyNote) => {
+  const now = new Date();
+
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const start = new Date(note.startDate);
+  const end = note.expiresAt ? new Date(note.expiresAt) : null;
+
+  return (
+    start.getTime() <= todayEnd.getTime() &&
+    (!end || end.getTime() >= todayStart.getTime())
+  );
+};
+
 export default function StickyNoteLayer({
   scope = "work-log",
 }: StickyNoteLayerProps) {
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const patchNote = useCallback(
     async (
@@ -125,6 +143,24 @@ export default function StickyNoteLayer({
     [],
   );
 
+  const deleteNote = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/sticky-notes/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        console.error("스티커 삭제 실패");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("스티커 삭제 중 오류:", error);
+      return false;
+    }
+  }, []);
+
   const fetchActiveNotes = useCallback(async () => {
     setIsLoading(true);
 
@@ -140,11 +176,6 @@ export default function StickyNoteLayer({
 
       const data = (await response.json()) as StickyNote[];
 
-      /**
-       * 최초 로딩 시:
-       * - 숨김 상태는 그대로 둠
-       * - 열린 상태는 너무 많이 화면 밖이면 느슨하게만 보정
-       */
       const fittedNotes =
         typeof window === "undefined"
           ? data
@@ -181,12 +212,6 @@ export default function StickyNoteLayer({
     void fetchActiveNotes();
   }, [fetchActiveNotes]);
 
-  /**
-   * 브라우저 크기 변경 시:
-   * 기존처럼 보정은 하되, 너무 강하게 안쪽으로 당기지 않음.
-   *
-   * 스티커의 15% 정도만 화면에 남아 있으면 그대로 둔다.
-   */
   useEffect(() => {
     let resizeFrame: number | null = null;
 
@@ -241,10 +266,6 @@ export default function StickyNoteLayer({
           }),
         );
 
-        /**
-         * 너무 많이 벗어나서 실제로 보정된 경우만 저장.
-         * 조금 벗어난 정도는 그대로 유지됨.
-         */
         if (changedNotes.length > 0) {
           void Promise.all(
             changedNotes.map((note) =>
@@ -271,6 +292,28 @@ export default function StickyNoteLayer({
     };
   }, [patchNote]);
 
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+
+      if (target?.closest("[data-sticky-note-menu='true']")) {
+        return;
+      }
+
+      setIsMenuOpen(false);
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isMenuOpen]);
+
   const updateLocalNote = (updatedNote: StickyNote) => {
     setNotes((previousNotes) =>
       previousNotes.map((note) =>
@@ -290,9 +333,6 @@ export default function StickyNoteLayer({
       window.innerHeight,
     );
 
-    /**
-     * 새 스티커는 화면 안쪽에 확실히 생성.
-     */
     const fittedPosition = fitNewNotePositionToViewport(
       position.x,
       position.y,
@@ -323,9 +363,94 @@ export default function StickyNoteLayer({
       const createdNote = (await response.json()) as StickyNote;
 
       setNotes((previousNotes) => [createdNote, ...previousNotes]);
+      setIsMenuOpen(false);
     } catch (error) {
       console.error("스티커 생성 중 오류:", error);
     }
+  };
+
+  const handleHideAll = async () => {
+    const targetNotes = notes.filter((note) => !note.collapsed);
+
+    if (targetNotes.length === 0) {
+      setIsMenuOpen(false);
+      return;
+    }
+
+    setNotes((previousNotes) =>
+      previousNotes.map((note) => ({
+        ...note,
+        collapsed: true,
+      })),
+    );
+
+    const updatedNotes = await Promise.all(
+      targetNotes.map((note) =>
+        patchNote(note.id, {
+          collapsed: true,
+        }),
+      ),
+    );
+
+    updatedNotes.forEach((updatedNote) => {
+      if (updatedNote) {
+        updateLocalNote(updatedNote);
+      }
+    });
+
+    setIsMenuOpen(false);
+  };
+
+  const handleClearHiddenNotes = async () => {
+    const today = new Date();
+    const endOfYesterday = getEndOfYesterdayISOString();
+
+    const hiddenNotes = notes.filter((note) => note.collapsed);
+
+    if (hiddenNotes.length === 0) {
+      setIsMenuOpen(false);
+      return;
+    }
+
+    const notesToDelete = hiddenNotes.filter((note) =>
+      isSameLocalDay(note.startDate, today),
+    );
+
+    const notesToExpire = hiddenNotes.filter((note) => {
+      const startsToday = isSameLocalDay(note.startDate, today);
+
+      return !startsToday && isTodayIncludedInNotePeriod(note);
+    });
+
+    const deletedResults = await Promise.all(
+      notesToDelete.map((note) => deleteNote(note.id)),
+    );
+
+    const deletedIds = notesToDelete
+      .filter((_, index) => deletedResults[index])
+      .map((note) => note.id);
+
+    const updatedNotes = await Promise.all(
+      notesToExpire.map((note) =>
+        patchNote(note.id, {
+          expiresAt: endOfYesterday,
+          collapsed: true,
+        }),
+      ),
+    );
+
+    const expiredIds = updatedNotes
+      .filter((note): note is StickyNote => note !== null)
+      .map((note) => note.id);
+
+    setNotes((previousNotes) =>
+      previousNotes.filter(
+        (note) =>
+          !deletedIds.includes(note.id) && !expiredIds.includes(note.id),
+      ),
+    );
+
+    setIsMenuOpen(false);
   };
 
   const handleCollapse = async (id: string) => {
@@ -366,11 +491,6 @@ export default function StickyNoteLayer({
       return;
     }
 
-    /**
-     * 숨김 해제 시:
-     * 너무 많이 화면 밖이면 살짝 보정.
-     * 조금 벗어난 정도는 유지.
-     */
     const fittedPosition = fitExistingNotePositionToViewport(
       targetNote.x ?? VIEWPORT_PADDING,
       targetNote.y ?? TOP_SAFE_AREA,
@@ -417,24 +537,17 @@ export default function StickyNoteLayer({
       return;
     }
 
-    try {
-      const response = await fetch(`/api/sticky-notes/${deleteTargetId}`, {
-        method: "DELETE",
-      });
+    const deleted = await deleteNote(deleteTargetId);
 
-      if (!response.ok) {
-        console.error("스티커 삭제 실패");
-        return;
-      }
-
-      setNotes((previousNotes) =>
-        previousNotes.filter((note) => note.id !== deleteTargetId),
-      );
-
-      setDeleteTargetId(null);
-    } catch (error) {
-      console.error("스티커 삭제 중 오류:", error);
+    if (!deleted) {
+      return;
     }
+
+    setNotes((previousNotes) =>
+      previousNotes.filter((note) => note.id !== deleteTargetId),
+    );
+
+    setDeleteTargetId(null);
   };
 
   const handlePinChange = async (id: string, pinned: boolean) => {
@@ -465,10 +578,6 @@ export default function StickyNoteLayer({
 
     const targetNote = notes.find((note) => note.id === id);
 
-    /**
-     * 드래그 종료 시:
-     * 너무 많이 벗어난 경우에만 살짝 보정.
-     */
     const fittedPosition = fitExistingNotePositionToViewport(
       x,
       y,
@@ -574,16 +683,49 @@ export default function StickyNoteLayer({
         data-scope={scope}
         className="pointer-events-none fixed inset-0 z-[1000]"
       >
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={isLoading}
-          className="pointer-events-auto fixed right-5 top-5 z-[1100] flex h-10 w-10 items-center justify-center rounded-full border border-neutral-900 bg-white text-2xl font-bold shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-          title="스티커 추가"
-          aria-label="스티커 추가"
+        <div
+          data-sticky-note-menu="true"
+          className="pointer-events-auto fixed right-5 top-5 z-[1100]"
         >
-          +
-        </button>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((previous) => !previous)}
+            disabled={isLoading}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-900 bg-white text-2xl font-bold shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            title="스티커 메뉴"
+            aria-label="스티커 메뉴"
+          >
+            +
+          </button>
+
+          {isMenuOpen && (
+            <div className="absolute right-0 top-12 w-40 overflow-hidden rounded-md border border-neutral-900 bg-white text-xs shadow-xl">
+              <button
+                type="button"
+                onClick={handleCreate}
+                className="block w-full px-3 py-2 text-left font-medium text-neutral-900 hover:bg-neutral-100"
+              >
+                새 스티커
+              </button>
+
+              <button
+                type="button"
+                onClick={handleHideAll}
+                className="block w-full border-t border-neutral-200 px-3 py-2 text-left font-medium text-neutral-900 hover:bg-neutral-100"
+              >
+                전체 숨기기
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearHiddenNotes}
+                className="block w-full border-t border-neutral-200 px-3 py-2 text-left font-medium text-red-700 hover:bg-red-50"
+              >
+                숨겨진 스티커 정리
+              </button>
+            </div>
+          )}
+        </div>
 
         {notes.map((note, index) => (
           <StickyNoteCard
