@@ -34,21 +34,13 @@ export const getAdjustedPayday = (
   year: number,
   month: number,
   paydayDay: number,
-  holidayDateKeys: string[],
+  holidayDateKeys: ReadonlySet<string>,
 ) => {
   const payday = new Date(year, month, paydayDay);
 
-  while (true) {
-    const dateKey = toLocalDateKey(payday);
-    const day = payday.getDay();
-
-    const isWeekend = day === 0 || day === 6;
-    const isHoliday = holidayDateKeys.includes(dateKey);
-
-    if (!isWeekend && !isHoliday) {
-      return payday;
-    }
-
+  while (isWeekendDate(payday) || holidayDateKeys.has(toLocalDateKey(payday))) {
     payday.setDate(payday.getDate() - 1);
   }
+
+  return payday;
 };

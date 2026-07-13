@@ -3,6 +3,13 @@ export type Holiday = {
   name: string;
 };
 
+export type HolidayApiResponse = {
+  year: number;
+  fetchedAt: string;
+  holidays: Holiday[];
+  source: "file-cache" | "stale-file-cache" | "external-api";
+};
+
 export type AppDayPickerProps = {
   value: string;
   onChange: (date: string) => void;
