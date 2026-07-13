@@ -3,6 +3,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { DayPicker } from "@daypicker/react";
+import { ko } from "@daypicker/react/locale";
+import "@daypicker/react/style.css";
 
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
@@ -100,6 +103,7 @@ const isSameLocalDay = (dateString: string, targetDate: Date) => {
 
 const getEndOfPreviousDayISOString = (baseDate: Date) => {
   const date = new Date(baseDate);
+
   date.setDate(date.getDate() - 1);
   date.setHours(23, 59, 59, 999);
 
@@ -126,8 +130,12 @@ export default function StickyNoteLayer({
   scope = "work-log",
 }: StickyNoteLayerProps) {
   const [viewDate, setViewDate] = useState(() => toLocalDateKey(new Date()));
+
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -313,14 +321,14 @@ export default function StickyNoteLayer({
   }, [patchNote]);
 
   useEffect(() => {
-    if (!isMenuOpen) {
+    if (!isMenuOpen && !isDatePickerOpen) {
       return;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
 
-      if (target?.closest("[data-sticky-note-menu='true']")) {
+      if (target?.closest("[data-sticky-note-controls='true']")) {
         return;
       }
 
@@ -333,7 +341,7 @@ export default function StickyNoteLayer({
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isDatePickerOpen]);
 
   const updateLocalNote = (updatedNote: StickyNote) => {
     setNotes((previousNotes) =>
@@ -348,9 +356,19 @@ export default function StickyNoteLayer({
       return;
     }
 
+    const nextLocalDate = createLocalDateFromKey(nextDate);
+
     setViewDate(nextDate);
+    setCalendarMonth(nextLocalDate);
     setIsDatePickerOpen(false);
-    setIsMenuOpen(false);
+  };
+
+  const handleMoveToToday = () => {
+    const today = new Date();
+
+    setViewDate(toLocalDateKey(today));
+    setCalendarMonth(today);
+    setIsDatePickerOpen(false);
   };
 
   const handleCreate = async () => {
@@ -395,8 +413,8 @@ export default function StickyNoteLayer({
       const createdNote = (await response.json()) as StickyNote;
 
       setNotes((previousNotes) => [createdNote, ...previousNotes]);
+
       setIsMenuOpen(false);
-      setIsDatePickerOpen(false);
     } catch (error) {
       console.error("스티커 생성 중 오류:", error);
     }
@@ -407,7 +425,6 @@ export default function StickyNoteLayer({
 
     if (targetNotes.length === 0) {
       setIsMenuOpen(false);
-      setIsDatePickerOpen(false);
       return;
     }
 
@@ -433,7 +450,6 @@ export default function StickyNoteLayer({
     });
 
     setIsMenuOpen(false);
-    setIsDatePickerOpen(false);
   };
 
   const handleClearHiddenNotes = async () => {
@@ -444,7 +460,6 @@ export default function StickyNoteLayer({
 
     if (hiddenNotes.length === 0) {
       setIsMenuOpen(false);
-      setIsDatePickerOpen(false);
       return;
     }
 
@@ -487,7 +502,6 @@ export default function StickyNoteLayer({
     );
 
     setIsMenuOpen(false);
-    setIsDatePickerOpen(false);
   };
 
   const handleCollapse = async (id: string) => {
@@ -679,6 +693,7 @@ export default function StickyNoteLayer({
     }
 
     const baseDate = createLocalDateFromKey(viewDate);
+
     const isExpiredForViewDate =
       updatedNote.expiresAt &&
       new Date(updatedNote.expiresAt).getTime() <
@@ -723,72 +738,165 @@ export default function StickyNoteLayer({
         className="pointer-events-none fixed inset-0 z-[1000]"
       >
         <div
-          data-sticky-note-menu="true"
-          className="pointer-events-auto fixed right-5 top-5 z-[1100]"
+          data-sticky-note-controls="true"
+          className="pointer-events-auto fixed right-5 top-5 z-[1100] flex items-start gap-2"
         >
-          <button
-            type="button"
-            onClick={() => setIsMenuOpen((previous) => !previous)}
-            disabled={isLoading}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-900 bg-white text-2xl font-bold shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-            title="스티커 메뉴"
-            aria-label="스티커 메뉴"
-          >
-            +
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                const selectedDate = createLocalDateFromKey(viewDate);
 
-          {isMenuOpen && (
-            <div className="absolute right-0 top-12 w-48 overflow-hidden rounded-md border border-neutral-900 bg-white text-xs shadow-xl">
-              <div className="border-b border-neutral-200 bg-neutral-50">
+                setCalendarMonth(selectedDate);
+                setIsDatePickerOpen((previous) => !previous);
+
+                setIsMenuOpen(false);
+              }}
+              disabled={isLoading}
+              className="flex h-10 items-center justify-center gap-2 rounded-full border border-neutral-900 bg-white px-3 text-xs font-semibold text-neutral-900 shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              title="조회 날짜 선택"
+              aria-label="조회 날짜 선택"
+              aria-expanded={isDatePickerOpen}
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+
+                <path d="M16 3v4M8 3v4M3 10h18" />
+              </svg>
+
+              <span>{formatMenuDateLabel(viewDate)}</span>
+            </button>
+
+            {isDatePickerOpen && (
+              <div className="absolute right-0 top-12 w-56 rounded-md border border-neutral-900 bg-white p-2 text-xs shadow-xl">
+                <div className="sticky-note-calendar overflow-hidden">
+                  <DayPicker
+                    mode="single"
+                    locale={ko}
+                    selected={createLocalDateFromKey(viewDate)}
+                    month={calendarMonth}
+                    onMonthChange={setCalendarMonth}
+                    onSelect={(selectedDate) => {
+                      if (!selectedDate) {
+                        return;
+                      }
+
+                      handleViewDateChange(toLocalDateKey(selectedDate));
+                    }}
+                    showOutsideDays
+                    classNames={{
+                      root: "relative m-0 w-full",
+                      months: "w-full",
+                      month: "w-full",
+
+                      month_caption:
+                        "pointer-events-none relative flex h-9 items-center justify-center",
+
+                      caption_label: "text-xs font-semibold text-neutral-900",
+
+                      nav: "pointer-events-auto absolute left-0 right-0 top-0 z-10 flex h-9 items-center justify-between",
+
+                      button_previous:
+                        "pointer-events-auto flex h-9 w-9 cursor-pointer items-center justify-center rounded text-neutral-700 transition hover:bg-neutral-100 active:bg-neutral-200",
+
+                      button_next:
+                        "pointer-events-auto flex h-9 w-9 cursor-pointer items-center justify-center rounded text-neutral-700 transition hover:bg-neutral-100 active:bg-neutral-200",
+
+                      month_grid: "w-full table-fixed border-collapse",
+
+                      weekdays: "grid grid-cols-7",
+
+                      weekday:
+                        "flex h-7 items-center justify-center text-[10px] font-medium text-neutral-500",
+
+                      week: "grid grid-cols-7",
+
+                      day: "flex h-7 items-center justify-center",
+
+                      day_button:
+                        "flex h-7 w-7 cursor-pointer items-center justify-center rounded text-[11px] text-neutral-800 transition hover:bg-neutral-100",
+
+                      selected:
+                        "[&>button]:bg-neutral-900 [&>button]:font-semibold [&>button]:text-white [&>button]:hover:bg-neutral-800",
+
+                      today:
+                        "[&>button]:border [&>button]:border-neutral-900 [&>button]:font-bold",
+
+                      outside: "[&>button]:text-neutral-300",
+
+                      disabled:
+                        "[&>button]:cursor-not-allowed [&>button]:opacity-30",
+
+                      hidden: "invisible",
+                    }}
+                  />
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setIsDatePickerOpen((previous) => !previous)}
-                  className="block w-full px-3 py-2 text-center font-semibold text-neutral-800 hover:bg-neutral-100"
-                  title="날짜 선택"
-                  aria-label="날짜 선택"
+                  onClick={handleMoveToToday}
+                  className="mt-2 block w-full rounded border border-neutral-300 px-3 py-2 text-center font-medium text-neutral-900 transition hover:bg-neutral-100"
                 >
-                  &lt; {formatMenuDateLabel(viewDate)} &gt;
+                  오늘로 이동
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setIsMenuOpen((previous) => !previous);
+
+                setIsDatePickerOpen(false);
+              }}
+              disabled={isLoading}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-900 bg-white text-2xl font-bold shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              title="스티커 메뉴"
+              aria-label="스티커 메뉴"
+              aria-expanded={isMenuOpen}
+            >
+              +
+            </button>
+
+            {isMenuOpen && (
+              <div className="absolute right-0 top-12 w-48 overflow-hidden rounded-md border border-neutral-900 bg-white text-xs shadow-xl">
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  className="block w-full px-3 py-2 text-left font-medium text-neutral-900 hover:bg-neutral-100"
+                >
+                  새 스티커
                 </button>
 
-                {isDatePickerOpen && (
-                  <div className="border-t border-neutral-200 px-3 py-2">
-                    <input
-                      type="date"
-                      value={viewDate}
-                      onChange={(event) =>
-                        handleViewDateChange(event.target.value)
-                      }
-                      className="w-full rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-800 outline-none"
-                    />
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={handleHideAll}
+                  className="block w-full border-t border-neutral-200 px-3 py-2 text-left font-medium text-neutral-900 hover:bg-neutral-100"
+                >
+                  전체 숨기기
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClearHiddenNotes}
+                  className="block w-full border-t border-neutral-200 px-3 py-2 text-left font-medium text-red-700 hover:bg-red-50"
+                >
+                  숨겨진 스티커 정리
+                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={handleCreate}
-                className="block w-full px-3 py-2 text-left font-medium text-neutral-900 hover:bg-neutral-100"
-              >
-                새 스티커
-              </button>
-
-              <button
-                type="button"
-                onClick={handleHideAll}
-                className="block w-full border-t border-neutral-200 px-3 py-2 text-left font-medium text-neutral-900 hover:bg-neutral-100"
-              >
-                전체 숨기기
-              </button>
-
-              <button
-                type="button"
-                onClick={handleClearHiddenNotes}
-                className="block w-full border-t border-neutral-200 px-3 py-2 text-left font-medium text-red-700 hover:bg-red-50"
-              >
-                숨겨진 스티커 정리
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {notes.map((note, index) => (
