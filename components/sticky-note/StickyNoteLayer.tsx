@@ -904,6 +904,7 @@ export default function StickyNoteLayer({
             key={note.id}
             note={note}
             index={index}
+            viewDate={viewDate}
             onCollapse={handleCollapse}
             onExpand={handleExpand}
             onDeleteRequest={handleDeleteRequest}

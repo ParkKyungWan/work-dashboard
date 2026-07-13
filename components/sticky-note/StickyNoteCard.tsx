@@ -15,9 +15,9 @@ import type {
 } from "./sticky-note.types";
 import {
   addDaysFromBase,
+  subDaysFromBase,
   clampStickyNotePosition,
   createPostItColor,
-  endOfToday,
   getDockTop,
 } from "./sticky-note.utils";
 
@@ -32,6 +32,7 @@ const MAX_HEIGHT = 720;
 export default function StickyNoteCard({
   note,
   index,
+  viewDate,
   onCollapse,
   onExpand,
   onDeleteRequest,
@@ -56,6 +57,15 @@ export default function StickyNoteCard({
   const heightRef = useRef(note.height || MIN_HEIGHT);
 
   const defaultTop = getDockTop(index);
+
+  const endOfViewDate = (dateKey: string) => {
+    const [year, month, day] = dateKey.split("-").map(Number);
+
+    const date = new Date(year, month - 1, day);
+    date.setHours(23, 59, 59, 999);
+
+    return date;
+  };
 
   const getDefaultOpenX = () => {
     if (typeof window === "undefined") {
@@ -307,20 +317,33 @@ export default function StickyNoteCard({
   };
 
   const handleToday = () => {
-    onExpiresAtChange(note.id, endOfToday().toISOString());
+    onExpiresAtChange(note.id, endOfViewDate(viewDate).toISOString());
+  };
+
+  const handleSubOneDay = () => {
+    const nextDate = subDaysFromBase(note.expiresAt, 1, viewDate);
+
+    const startDate = new Date(note.startDate);
+    startDate.setHours(23, 59, 59, 999);
+
+    if (nextDate.getTime() < startDate.getTime()) {
+      return;
+    }
+
+    onExpiresAtChange(note.id, nextDate.toISOString());
   };
 
   const handleAddOneDay = () => {
     onExpiresAtChange(
       note.id,
-      addDaysFromBase(note.expiresAt, 1).toISOString(),
+      addDaysFromBase(note.expiresAt, 1, viewDate).toISOString(),
     );
   };
 
   const handleAddOneWeek = () => {
     onExpiresAtChange(
       note.id,
-      addDaysFromBase(note.expiresAt, 7).toISOString(),
+      addDaysFromBase(note.expiresAt, 7, viewDate).toISOString(),
     );
   };
 
@@ -565,6 +588,7 @@ export default function StickyNoteCard({
 
                 <StickyNoteQuickDateButtons
                   onToday={handleToday}
+                  onSubOneDay={handleSubOneDay}
                   onAddOneDay={handleAddOneDay}
                   onAddOneWeek={handleAddOneWeek}
                 />

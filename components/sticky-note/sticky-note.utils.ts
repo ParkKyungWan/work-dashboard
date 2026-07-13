@@ -61,14 +61,44 @@ export function endOfToday() {
   return date;
 }
 
-export function addDaysFromBase(baseDateString: string | null, days: number) {
-  const now = new Date();
-  const baseDate = baseDateString ? new Date(baseDateString) : null;
+function getBaseDateFromViewDate(viewDate?: string) {
+  if (!viewDate) {
+    return endOfToday();
+  }
 
-  const date =
-    baseDate && baseDate.getTime() > now.getTime() ? baseDate : endOfToday();
+  const [year, month, day] = viewDate.split("-").map(Number);
+
+  const date = new Date(year, month - 1, day);
+  date.setHours(23, 59, 59, 999);
+
+  return date;
+}
+
+export function addDaysFromBase(
+  baseDateString: string | null,
+  days: number,
+  viewDate?: string,
+) {
+  const date = baseDateString
+    ? new Date(baseDateString)
+    : getBaseDateFromViewDate(viewDate);
 
   date.setDate(date.getDate() + days);
+  date.setHours(23, 59, 59, 999);
+
+  return date;
+}
+
+export function subDaysFromBase(
+  baseDateString: string | null,
+  days: number,
+  viewDate?: string,
+) {
+  const date = baseDateString
+    ? new Date(baseDateString)
+    : getBaseDateFromViewDate(viewDate);
+
+  date.setDate(date.getDate() - days);
   date.setHours(23, 59, 59, 999);
 
   return date;

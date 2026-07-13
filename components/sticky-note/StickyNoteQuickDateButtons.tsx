@@ -4,12 +4,14 @@
 
 type StickyNoteQuickDateButtonsProps = {
   onToday: () => void;
+  onSubOneDay: () => void;
   onAddOneDay: () => void;
   onAddOneWeek: () => void;
 };
 
 export default function StickyNoteQuickDateButtons({
   onToday,
+  onSubOneDay,
   onAddOneDay,
   onAddOneWeek,
 }: StickyNoteQuickDateButtonsProps) {
@@ -24,6 +26,17 @@ export default function StickyNoteQuickDateButtons({
         className="bg-[#e6b6b6] px-2 py-1 text-[11px] font-bold text-[#5a1e1e]"
       >
         오늘까지
+      </button>
+
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onSubOneDay();
+        }}
+        className="bg-[#e6b6b6] px-2 py-1 text-[11px] font-bold text-[#5a1e1e]"
+      >
+        -1일
       </button>
 
       <button
