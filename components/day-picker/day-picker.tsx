@@ -10,6 +10,7 @@ import type {
   AppDayPickerProps,
   Holiday,
   HolidayApiResponse,
+  LeaveDay,
 } from "./day-picker.types";
 import {
   createLocalDateFromKey,
@@ -27,36 +28,26 @@ export default function AppDayPicker({
 
   const [calendarMonth, setCalendarMonth] = useState(selectedDate);
 
-  /**
-   * 연도별 공휴일을 브라우저 메모리에 보관합니다.
-   *
-   * 예:
-   * {
-   *   2026: [...],
-   *   2027: [...]
-   * }
-   */
   const [holidaysByYear, setHolidaysByYear] = useState<
     Record<number, Holiday[]>
   >({});
 
+  const [leaveDaysByYear, setLeaveDaysByYear] = useState<
+    Record<number, LeaveDay[]>
+  >({});
+
   const [isHolidayLoading, setIsHolidayLoading] = useState(false);
 
-  /**
-   * 같은 연도를 중복 요청하지 않도록 기록합니다.
-   */
-  const requestedYearsRef = useRef<Set<number>>(new Set());
+  const requestedHolidayYearsRef = useRef<Set<number>>(new Set());
+
+  const requestedLeaveYearsRef = useRef<Set<number>>(new Set());
 
   const loadHolidays = useCallback(async (year: number) => {
-    /**
-     * 이미 정상적으로 요청했거나 요청 중인 연도면
-     * 다시 호출하지 않습니다.
-     */
-    if (requestedYearsRef.current.has(year)) {
+    if (requestedHolidayYearsRef.current.has(year)) {
       return;
     }
 
-    requestedYearsRef.current.add(year);
+    requestedHolidayYearsRef.current.add(year);
     setIsHolidayLoading(true);
 
     try {
@@ -81,11 +72,7 @@ export default function AppDayPicker({
         [year]: data.holidays,
       }));
     } catch (error) {
-      /**
-       * 실패한 연도는 다음에 다시 시도할 수 있도록
-       * 요청 기록에서 제거합니다.
-       */
-      requestedYearsRef.current.delete(year);
+      requestedHolidayYearsRef.current.delete(year);
 
       console.error(`${year}년 공휴일 조회 실패:`, error);
     } finally {
@@ -93,31 +80,58 @@ export default function AppDayPicker({
     }
   }, []);
 
-  /**
-   * 외부에서 선택 날짜가 변경되면
-   * 달력도 그 날짜가 포함된 월로 이동합니다.
-   */
+  const loadLeaveDays = useCallback(async (year: number) => {
+    if (requestedLeaveYearsRef.current.has(year)) {
+      return;
+    }
+
+    requestedLeaveYearsRef.current.add(year);
+
+    try {
+      const response = await fetch(`/api/leave?year=${year}`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+
+        throw new Error(
+          errorData?.message ?? `${year}년 연차 정보를 불러오지 못했습니다.`,
+        );
+      }
+
+      const data = (await response.json()) as LeaveDay[];
+
+      setLeaveDaysByYear((previous) => ({
+        ...previous,
+        [year]: data,
+      }));
+    } catch (error) {
+      requestedLeaveYearsRef.current.delete(year);
+
+      console.error(`${year}년 연차 조회 실패:`, error);
+    }
+  }, []);
+
   useEffect(() => {
     setCalendarMonth(selectedDate);
   }, [selectedDate]);
 
-  /**
-   * 달력에서 보고 있는 연도가 바뀔 때
-   * 해당 연도의 공휴일을 불러옵니다.
-   */
   useEffect(() => {
     const year = calendarMonth.getFullYear();
 
     void loadHolidays(year);
-  }, [calendarMonth, loadHolidays]);
+    void loadLeaveDays(year);
+  }, [calendarMonth, loadHolidays, loadLeaveDays]);
 
   const calendarYear = calendarMonth.getFullYear();
 
   const currentYearHolidays = holidaysByYear[calendarYear] ?? [];
 
-  /**
-   * DayPicker의 holiday modifier에 전달할 Date 배열입니다.
-   */
+  const currentYearLeaveDays = leaveDaysByYear[calendarYear] ?? [];
+
   const holidayDates = useMemo(
     () =>
       currentYearHolidays.map((holiday) =>
@@ -126,12 +140,36 @@ export default function AppDayPicker({
     [currentYearHolidays],
   );
 
-  /**
-   * 월급일 계산에서 빠르게 공휴일 여부를 확인하기 위한 Set입니다.
-   */
   const holidayDateKeys = useMemo(
     () => new Set(currentYearHolidays.map((holiday) => holiday.date)),
     [currentYearHolidays],
+  );
+
+  const annualLeaveDates = useMemo(
+    () =>
+      currentYearLeaveDays
+        .filter((leaveDay) => leaveDay.type === "ANNUAL_LEAVE")
+        .map((leaveDay) => createLocalDateFromKey(leaveDay.date)),
+    [currentYearLeaveDays],
+  );
+
+  const halfDayDates = useMemo(
+    () =>
+      currentYearLeaveDays
+        .filter(
+          (leaveDay) =>
+            leaveDay.type === "HALF_DAY_AM" || leaveDay.type === "HALF_DAY_PM",
+        )
+        .map((leaveDay) => createLocalDateFromKey(leaveDay.date)),
+    [currentYearLeaveDays],
+  );
+
+  const specialLeaveDates = useMemo(
+    () =>
+      currentYearLeaveDays
+        .filter((leaveDay) => leaveDay.type === "SPECIAL_LEAVE")
+        .map((leaveDay) => createLocalDateFromKey(leaveDay.date)),
+    [currentYearLeaveDays],
   );
 
   return (
@@ -155,13 +193,13 @@ export default function AppDayPicker({
 
           holiday: holidayDates,
 
+          annualLeave: annualLeaveDates,
+
+          halfDay: halfDayDates,
+
+          specialLeave: specialLeaveDates,
+
           payday: (date) => {
-            /**
-             * modifier는 전달받은 날짜별로 실행됩니다.
-             *
-             * 25일이 주말이나 공휴일이면
-             * 이전 영업일까지 이동한 날짜를 계산합니다.
-             */
             const adjustedPayday = getAdjustedPayday(
               date.getFullYear(),
               date.getMonth(),
@@ -178,6 +216,15 @@ export default function AppDayPicker({
 
           holiday:
             "[&>button]:bg-red-100 [&>button]:font-semibold [&>button]:text-red-600 [&>button]:hover:bg-red-200",
+
+          annualLeave:
+            "[&>button]:!bg-amber-100 [&>button]:font-semibold [&>button]:!text-orange-700 [&>button]:hover:!bg-orange-200",
+
+          halfDay:
+            "[&>button]:!bg-yellow-100 [&>button]:font-semibold [&>button]:!text-yellow-700 [&>button]:hover:!bg-yellow-200",
+
+          specialLeave:
+            "[&>button]:!bg-amber-100 [&>button]:font-semibold [&>button]:!text-orange-700 [&>button]:hover:!bg-orange-200",
 
           payday:
             "[&>button]:relative [&>button]:font-bold after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-red-500",
@@ -231,7 +278,7 @@ export default function AppDayPicker({
       />
 
       {isHolidayLoading && (
-        <div className="pointer-events-none absolute left-1/2 top-10 z-30 flex -translate-x-1/2 items-center gap-1 rounded bg-white/90 px-2 py-1 text-[11px] font-medium text-neutral-700 shadow-sm">
+        <div className="pointer-events-none mt-2 flex h-6 items-center justify-center gap-1 rounded bg-neutral-50 text-[10px] font-medium text-neutral-500">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-neutral-500" />
           공휴일 확인 중
         </div>
