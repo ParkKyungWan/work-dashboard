@@ -7,6 +7,7 @@ import { ko } from "@daypicker/react/locale";
 import type { AppDayPickerProps } from "./day-picker.types";
 import {
   createLocalDateFromKey,
+  getAdjustedPayday,
   isWeekendDate,
   toLocalDateKey,
 } from "./day-picker.utils";
@@ -23,6 +24,11 @@ export default function AppDayPicker({
 
   const holidayDates = useMemo(
     () => holidays.map((holiday) => createLocalDateFromKey(holiday.date)),
+    [holidays],
+  );
+
+  const holidayDateKeys = useMemo(
+    () => holidays.map((holiday) => holiday.date),
     [holidays],
   );
 
@@ -51,7 +57,14 @@ export default function AppDayPicker({
         holiday: holidayDates,
 
         payday: (date) => {
-          return date.getDate() === paydayDay;
+          const adjustedPayday = getAdjustedPayday(
+            date.getFullYear(),
+            date.getMonth(),
+            paydayDay,
+            holidayDateKeys,
+          );
+
+          return toLocalDateKey(date) === toLocalDateKey(adjustedPayday);
         },
       }}
       modifiersClassNames={{
@@ -62,7 +75,7 @@ export default function AppDayPicker({
           "[&>button]:bg-red-100 [&>button]:font-semibold [&>button]:text-red-600 [&>button]:hover:bg-red-200",
 
         payday:
-          "[&>button]:relative [&>button]:font-bold after:absolute after:bottom-0 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-blue-600",
+          "[&>button]:relative [&>button]:font-bold after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-red-500",
       }}
       classNames={{
         root: "relative m-0 w-full",

@@ -29,3 +29,26 @@ export const isWeekendDate = (date: Date) => {
 
   return day === 0 || day === 6;
 };
+
+export const getAdjustedPayday = (
+  year: number,
+  month: number,
+  paydayDay: number,
+  holidayDateKeys: string[],
+) => {
+  const payday = new Date(year, month, paydayDay);
+
+  while (true) {
+    const dateKey = toLocalDateKey(payday);
+    const day = payday.getDay();
+
+    const isWeekend = day === 0 || day === 6;
+    const isHoliday = holidayDateKeys.includes(dateKey);
+
+    if (!isWeekend && !isHoliday) {
+      return payday;
+    }
+
+    payday.setDate(payday.getDate() - 1);
+  }
+};
