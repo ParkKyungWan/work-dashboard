@@ -25,6 +25,15 @@ export type LeaveDay = {
   updatedAt: string;
 };
 
+export type ExternalSchedule = {
+  id: string;
+  date: string;
+  title: string;
+  memo: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type AppDayPickerProps = {
   value: string;
   onChange: (date: string) => void;

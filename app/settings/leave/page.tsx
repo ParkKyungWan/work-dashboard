@@ -83,7 +83,7 @@ export default function LeaveSettingsPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/leave", {
+      const response = await fetch("/api/day-picker/leave", {
         cache: "no-store",
       });
 
@@ -128,7 +128,9 @@ export default function LeaveSettingsPage() {
     setIsSaving(true);
     setMessage("");
 
-    const requestUrl = editingId ? `/api/leave/${editingId}` : "/api/leave";
+    const requestUrl = editingId
+      ? `/api/day-picker/leave/${editingId}`
+      : "/api/day-picker/leave";
 
     const requestMethod = editingId ? "PATCH" : "POST";
 
@@ -200,7 +202,7 @@ export default function LeaveSettingsPage() {
     }
 
     try {
-      const response = await fetch(`/api/leave/${leaveDay.id}`, {
+      const response = await fetch(`/api/day-picker/leave/${leaveDay.id}`, {
         method: "DELETE",
       });
 
@@ -243,7 +245,7 @@ export default function LeaveSettingsPage() {
             href="/settings"
             className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium hover:bg-neutral-50"
           >
-            돌아가기
+            설정으로
           </Link>
         </div>
 

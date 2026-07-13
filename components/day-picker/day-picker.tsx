@@ -1,5 +1,3 @@
-// components/day-picker/AppDayPicker.tsx
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,6 +6,7 @@ import { ko } from "@daypicker/react/locale";
 
 import type {
   AppDayPickerProps,
+  ExternalSchedule,
   Holiday,
   HolidayApiResponse,
   LeaveDay,
@@ -36,11 +35,15 @@ export default function AppDayPicker({
     Record<number, LeaveDay[]>
   >({});
 
+  const [externalSchedulesByYear, setExternalSchedulesByYear] = useState<
+    Record<number, ExternalSchedule[]>
+  >({});
+
   const [isHolidayLoading, setIsHolidayLoading] = useState(false);
 
   const requestedHolidayYearsRef = useRef<Set<number>>(new Set());
-
   const requestedLeaveYearsRef = useRef<Set<number>>(new Set());
+  const requestedExternalScheduleYearsRef = useRef<Set<number>>(new Set());
 
   const loadHolidays = useCallback(async (year: number) => {
     if (requestedHolidayYearsRef.current.has(year)) {
@@ -51,7 +54,7 @@ export default function AppDayPicker({
     setIsHolidayLoading(true);
 
     try {
-      const response = await fetch(`/api/holidays?year=${year}`, {
+      const response = await fetch(`/api/day-picker/holidays?year=${year}`, {
         cache: "no-store",
       });
 
@@ -88,7 +91,7 @@ export default function AppDayPicker({
     requestedLeaveYearsRef.current.add(year);
 
     try {
-      const response = await fetch(`/api/leave?year=${year}`, {
+      const response = await fetch(`/api/day-picker/leave?year=${year}`, {
         cache: "no-store",
       });
 
@@ -115,6 +118,48 @@ export default function AppDayPicker({
     }
   }, []);
 
+  const loadExternalSchedules = useCallback(async (year: number) => {
+    if (requestedExternalScheduleYearsRef.current.has(year)) {
+      return;
+    }
+
+    requestedExternalScheduleYearsRef.current.add(year);
+
+    try {
+      const response = await fetch("/api/day-picker/external-schedules", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+
+        throw new Error(
+          errorData?.message ??
+            `${year}년 외부 일정 정보를 불러오지 못했습니다.`,
+        );
+      }
+
+      const data = (await response.json()) as ExternalSchedule[];
+
+      const yearPrefix = `${year}-`;
+
+      const schedulesForYear = data.filter((schedule) =>
+        schedule.date.startsWith(yearPrefix),
+      );
+
+      setExternalSchedulesByYear((previous) => ({
+        ...previous,
+        [year]: schedulesForYear,
+      }));
+    } catch (error) {
+      requestedExternalScheduleYearsRef.current.delete(year);
+
+      console.error(`${year}년 외부 일정 조회 실패:`, error);
+    }
+  }, []);
+
   useEffect(() => {
     setCalendarMonth(selectedDate);
   }, [selectedDate]);
@@ -124,13 +169,15 @@ export default function AppDayPicker({
 
     void loadHolidays(year);
     void loadLeaveDays(year);
-  }, [calendarMonth, loadHolidays, loadLeaveDays]);
+    void loadExternalSchedules(year);
+  }, [calendarMonth, loadExternalSchedules, loadHolidays, loadLeaveDays]);
 
   const calendarYear = calendarMonth.getFullYear();
 
   const currentYearHolidays = holidaysByYear[calendarYear] ?? [];
-
   const currentYearLeaveDays = leaveDaysByYear[calendarYear] ?? [];
+  const currentYearExternalSchedules =
+    externalSchedulesByYear[calendarYear] ?? [];
 
   const holidayDates = useMemo(
     () =>
@@ -172,6 +219,14 @@ export default function AppDayPicker({
     [currentYearLeaveDays],
   );
 
+  const externalScheduleDates = useMemo(
+    () =>
+      currentYearExternalSchedules.map((schedule) =>
+        createLocalDateFromKey(schedule.date),
+      ),
+    [currentYearExternalSchedules],
+  );
+
   return (
     <div className="relative">
       <DayPicker
@@ -192,6 +247,8 @@ export default function AppDayPicker({
           weekend: isWeekendDate,
 
           holiday: holidayDates,
+
+          externalSchedule: externalScheduleDates,
 
           annualLeave: annualLeaveDates,
 
@@ -216,6 +273,9 @@ export default function AppDayPicker({
 
           holiday:
             "[&>button]:bg-red-100 [&>button]:font-semibold [&>button]:text-red-600 [&>button]:hover:bg-red-200",
+
+          externalSchedule:
+            "[&>button]:!bg-emerald-50 [&>button]:font-semibold [&>button]:!text-emerald-700 [&>button]:hover:!bg-emerald-200",
 
           annualLeave:
             "[&>button]:!bg-amber-100 [&>button]:font-semibold [&>button]:!text-orange-700 [&>button]:hover:!bg-orange-200",

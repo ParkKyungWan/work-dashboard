@@ -6,6 +6,8 @@ type SettingItem = {
   href: string;
   title: string;
   description: string;
+  badge: string;
+  badgeClassName: string;
 };
 
 const SETTING_ITEMS: SettingItem[] = [
@@ -13,6 +15,15 @@ const SETTING_ITEMS: SettingItem[] = [
     href: "/settings/leave",
     title: "연차 설정",
     description: "연차, 반차, 특별휴가를 등록하고 관리합니다.",
+    badge: "연차",
+    badgeClassName: "bg-amber-100 text-amber-800",
+  },
+  {
+    href: "/settings/external-schedules",
+    title: "외부 일정",
+    description: "개인 일정이나 외부 일정을 등록하고 관리합니다.",
+    badge: "일정",
+    badgeClassName: "bg-emerald-100 text-emerald-700",
   },
 ];
 
@@ -47,14 +58,20 @@ export default function SettingsPage() {
               key={item.href}
               href={item.href}
               className="
-                group flex items-center gap-4
-                border-b border-neutral-200 px-5 py-4
-                transition-colors
-                last:border-b-0 hover:bg-neutral-50
-              "
+        group flex items-center gap-4
+        border-b border-neutral-200 px-5 py-4
+        transition-colors
+        last:border-b-0 hover:bg-neutral-50
+      "
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-sm font-bold text-orange-700">
-                연차
+              <div
+                className={`
+          flex h-10 w-10 shrink-0 items-center justify-center
+          rounded-lg text-xs font-bold
+          ${item.badgeClassName}
+        `}
+              >
+                {item.badge}
               </div>
 
               <div className="min-w-0 flex-1">
