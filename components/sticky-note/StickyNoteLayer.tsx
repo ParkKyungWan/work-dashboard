@@ -12,6 +12,7 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import StickyNoteCard from "./StickyNoteCard";
 import type { StickyNote, StickyNoteLayerProps } from "./sticky-note.types";
 import { findNewStickyNotePosition } from "./sticky-note.utils";
+import { AppDayPicker } from "../day-picker";
 
 const DEFAULT_STICKY_NOTE_WIDTH = 320;
 const DEFAULT_STICKY_NOTE_HEIGHT = 360;
@@ -779,65 +780,11 @@ export default function StickyNoteLayer({
             {isDatePickerOpen && (
               <div className="absolute right-0 top-12 w-56 rounded-md border border-neutral-900 bg-white p-2 text-xs shadow-xl">
                 <div className="sticky-note-calendar overflow-hidden">
-                  <DayPicker
-                    mode="single"
-                    locale={ko}
-                    selected={createLocalDateFromKey(viewDate)}
-                    month={calendarMonth}
-                    onMonthChange={setCalendarMonth}
-                    onSelect={(selectedDate) => {
-                      if (!selectedDate) {
-                        return;
-                      }
-
-                      handleViewDateChange(toLocalDateKey(selectedDate));
-                    }}
-                    showOutsideDays
-                    classNames={{
-                      root: "relative m-0 w-full",
-                      months: "w-full",
-                      month: "w-full",
-
-                      month_caption:
-                        "pointer-events-none relative flex h-9 items-center justify-center",
-
-                      caption_label: "text-xs font-semibold text-neutral-900",
-
-                      nav: "pointer-events-auto absolute left-0 right-0 top-0 z-10 flex h-9 items-center justify-between",
-
-                      button_previous:
-                        "pointer-events-auto flex h-9 w-9 cursor-pointer items-center justify-center rounded text-neutral-700 transition hover:bg-neutral-100 active:bg-neutral-200",
-
-                      button_next:
-                        "pointer-events-auto flex h-9 w-9 cursor-pointer items-center justify-center rounded text-neutral-700 transition hover:bg-neutral-100 active:bg-neutral-200",
-
-                      month_grid: "w-full table-fixed border-collapse",
-
-                      weekdays: "grid grid-cols-7",
-
-                      weekday:
-                        "flex h-7 items-center justify-center text-[10px] font-medium text-neutral-500",
-
-                      week: "grid grid-cols-7",
-
-                      day: "flex h-7 items-center justify-center",
-
-                      day_button:
-                        "flex h-7 w-7 cursor-pointer items-center justify-center rounded text-[11px] text-neutral-800 transition hover:bg-neutral-100",
-
-                      selected:
-                        "[&>button]:bg-neutral-900 [&>button]:font-semibold [&>button]:text-white [&>button]:hover:bg-neutral-800",
-
-                      today:
-                        "[&>button]:border [&>button]:border-neutral-900 [&>button]:font-bold",
-
-                      outside: "[&>button]:text-neutral-300",
-
-                      disabled:
-                        "[&>button]:cursor-not-allowed [&>button]:opacity-30",
-
-                      hidden: "invisible",
-                    }}
+                  <AppDayPicker
+                    value={viewDate}
+                    onChange={handleViewDateChange}
+                    holidays={[]}
+                    paydayDay={25}
                   />
                 </div>
 
