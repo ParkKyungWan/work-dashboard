@@ -7,7 +7,6 @@ export default function WorkLogPage() {
   return (
     <main className="min-h-screen bg-neutral-50 p-8">
       <SettingCornerLink />
-      {/* <StickyNoteLayer scope="work-log" /> */}
       <WorkspaceLayer scope="work-log" />
     </main>
   );

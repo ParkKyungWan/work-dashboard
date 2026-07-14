@@ -2,17 +2,36 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { AppDayPicker } from "@/components/day-picker";
+import type {
+  Holiday,
+  HolidayApiResponse,
+} from "@/components/day-picker/day-picker.types";
+import {
+  createLocalDateFromKey,
+  toLocalDateKey,
+} from "@/components/day-picker/day-picker.utils";
 import StickyNoteCard from "@/components/sticky-note/StickyNoteCard";
 import type { StickyNote } from "@/components/sticky-note/sticky-note.types";
 import { findNewStickyNotePosition } from "@/components/sticky-note/sticky-note.utils";
 
-type WorkspaceLayerProps = {
-  scope?: string;
-};
+import type {
+  ExternalSchedule,
+  LeaveDay,
+  WorkspaceLayerProps,
+  WorkspaceScheduleItem,
+} from "./workspace.types";
+import {
+  formatWorkspaceDateLabel,
+  formatWorkspaceMenuDateLabel,
+  getEndOfPreviousDayISOString,
+  getWorkspaceDateInfo,
+  isDateIncludedInNotePeriod,
+  isSameLocalDay,
+} from "./workspace.utils";
 
 const DEFAULT_STICKY_NOTE_WIDTH = 320;
 const DEFAULT_STICKY_NOTE_HEIGHT = 360;
@@ -21,6 +40,7 @@ const VIEWPORT_PADDING = 16;
 const TOP_SAFE_AREA = 72;
 
 const MIN_VISIBLE_RATIO = 0.15;
+const PAYDAY_DAY = 25;
 
 const clamp = (value: number, min: number, max: number) => {
   return Math.min(Math.max(value, min), max);
@@ -73,59 +93,15 @@ const fitExistingNotePositionToViewport = (
   };
 };
 
-const toLocalDateKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+const getResponseMessage = async (
+  response: Response,
+  fallbackMessage: string,
+) => {
+  const data = (await response.json().catch(() => null)) as {
+    message?: string;
+  } | null;
 
-  return `${year}-${month}-${day}`;
-};
-
-const createLocalDateFromKey = (dateKey: string) => {
-  const [year, month, day] = dateKey.split("-").map(Number);
-
-  return new Date(year, month - 1, day);
-};
-
-const formatMenuDateLabel = (dateKey: string) => {
-  const date = createLocalDateFromKey(dateKey);
-
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-
-  const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
-
-  return `${year}.${month}.${day} (${weekday})`;
-};
-
-const isSameLocalDay = (dateString: string, targetDate: Date) => {
-  return toLocalDateKey(new Date(dateString)) === toLocalDateKey(targetDate);
-};
-
-const getEndOfPreviousDayISOString = (baseDate: Date) => {
-  const date = new Date(baseDate);
-
-  date.setDate(date.getDate() - 1);
-  date.setHours(23, 59, 59, 999);
-
-  return date.toISOString();
-};
-
-const isDateIncludedInNotePeriod = (note: StickyNote, baseDate: Date) => {
-  const baseDateStart = new Date(baseDate);
-  baseDateStart.setHours(0, 0, 0, 0);
-
-  const baseDateEnd = new Date(baseDate);
-  baseDateEnd.setHours(23, 59, 59, 999);
-
-  const start = new Date(note.startDate);
-  const end = note.expiresAt ? new Date(note.expiresAt) : null;
-
-  return (
-    start.getTime() <= baseDateEnd.getTime() &&
-    (!end || end.getTime() >= baseDateStart.getTime())
-  );
+  return data?.message ?? fallbackMessage;
 };
 
 export default function WorkspaceLayer({
@@ -134,11 +110,135 @@ export default function WorkspaceLayer({
   const [viewDate, setViewDate] = useState(() => toLocalDateKey(new Date()));
 
   const [notes, setNotes] = useState<StickyNote[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [leaveDays, setLeaveDays] = useState<LeaveDay[]>([]);
+  const [externalSchedules, setExternalSchedules] = useState<
+    ExternalSchedule[]
+  >([]);
+
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isScheduleLoading, setIsScheduleLoading] = useState(false);
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  const selectedYear = useMemo(() => {
+    return createLocalDateFromKey(viewDate).getFullYear();
+  }, [viewDate]);
+
+  const workspaceDateLabel = useMemo(() => {
+    return formatWorkspaceDateLabel(viewDate);
+  }, [viewDate]);
+
+  const selectedDateInfo = useMemo(() => {
+    return getWorkspaceDateInfo({
+      dateKey: viewDate,
+      holidays,
+      paydayDay: PAYDAY_DAY,
+    });
+  }, [holidays, viewDate]);
+
+  const selectedDateScheduleItems = useMemo<WorkspaceScheduleItem[]>(() => {
+    const items: WorkspaceScheduleItem[] = [];
+
+    if (selectedDateInfo.holidayName) {
+      items.push({
+        id: `holiday-${viewDate}`,
+        type: "HOLIDAY",
+        label: selectedDateInfo.holidayName,
+        className: "text-red-600",
+      });
+    }
+
+    if (selectedDateInfo.isPayday) {
+      items.push({
+        id: `payday-${viewDate}`,
+        type: "PAYDAY",
+        label: "월급날",
+        className: "text-rose-600",
+      });
+    }
+
+    leaveDays
+      .filter((leaveDay) => leaveDay.date === viewDate)
+      .forEach((leaveDay) => {
+        if (leaveDay.type === "ANNUAL_LEAVE") {
+          const leaveTitle = leaveDay.label.trim();
+
+          items.push({
+            id: `leave-${leaveDay.id}`,
+            type: leaveDay.type,
+            label: leaveTitle ? `연차 - ${leaveTitle}` : "연차",
+            className: "text-orange-700",
+          });
+
+          return;
+        }
+
+        if (leaveDay.type === "HALF_DAY_AM") {
+          items.push({
+            id: `leave-${leaveDay.id}`,
+            type: leaveDay.type,
+            label: "오전 반차",
+            className: "text-yellow-700",
+          });
+
+          return;
+        }
+
+        if (leaveDay.type === "HALF_DAY_PM") {
+          items.push({
+            id: `leave-${leaveDay.id}`,
+            type: leaveDay.type,
+            label: "오후 반차",
+            className: "text-yellow-700",
+          });
+
+          return;
+        }
+
+        items.push({
+          id: `leave-${leaveDay.id}`,
+          type: leaveDay.type,
+          label: leaveDay.label.trim() || "특별휴가",
+          className: "text-orange-700",
+        });
+      });
+
+    externalSchedules
+      .filter((schedule) => schedule.date === viewDate)
+      .forEach((schedule) => {
+        items.push({
+          id: `external-${schedule.id}`,
+          type: "EXTERNAL_SCHEDULE",
+          label: schedule.title.trim() || "외부 일정",
+          className: "text-emerald-700",
+        });
+      });
+
+    if (selectedDateInfo.isWeekend) {
+      items.push({
+        id: `weekend-${viewDate}`,
+        type: "WEEKEND",
+        label: "주말",
+        className: "text-red-500",
+      });
+    }
+
+    return items;
+  }, [externalSchedules, leaveDays, selectedDateInfo, viewDate]);
+
+  const normalScheduleItems = useMemo(() => {
+    return selectedDateScheduleItems.filter((item) => item.type !== "WEEKEND");
+  }, [selectedDateScheduleItems]);
+
+  const weekendScheduleItem = useMemo(() => {
+    return (
+      selectedDateScheduleItems.find((item) => item.type === "WEEKEND") ?? null
+    );
+  }, [selectedDateScheduleItems]);
 
   const patchNote = useCallback(
     async (
@@ -155,7 +255,13 @@ export default function WorkspaceLayer({
         });
 
         if (!response.ok) {
-          console.error("스티커 수정 실패");
+          const message = await getResponseMessage(
+            response,
+            "스티커 수정에 실패했습니다.",
+          );
+
+          console.error(message);
+
           return null;
         }
 
@@ -176,7 +282,13 @@ export default function WorkspaceLayer({
       });
 
       if (!response.ok) {
-        console.error("스티커 삭제 실패");
+        const message = await getResponseMessage(
+          response,
+          "스티커 삭제에 실패했습니다.",
+        );
+
+        console.error(message);
+
         return false;
       }
 
@@ -193,18 +305,30 @@ export default function WorkspaceLayer({
 
     try {
       const response = await fetch(
-        `/api/sticky-notes/by-date?date=${viewDate}`,
+        `/api/sticky-notes/by-date?date=${encodeURIComponent(viewDate)}`,
         {
           cache: "no-store",
         },
       );
 
       if (!response.ok) {
-        console.error("스티커 조회 실패");
+        const message = await getResponseMessage(
+          response,
+          "스티커 조회에 실패했습니다.",
+        );
+
+        console.error(message);
+
         return;
       }
 
       const data = (await response.json()) as StickyNote[];
+
+      if (!Array.isArray(data)) {
+        setNotes([]);
+
+        return;
+      }
 
       const fittedNotes =
         typeof window === "undefined"
@@ -238,9 +362,86 @@ export default function WorkspaceLayer({
     }
   }, [viewDate]);
 
+  const fetchWorkspaceSchedules = useCallback(async () => {
+    setIsScheduleLoading(true);
+
+    try {
+      const [holidayResponse, leaveResponse, externalScheduleResponse] =
+        await Promise.all([
+          fetch(`/api/day-picker/holidays?year=${selectedYear}`, {
+            cache: "no-store",
+          }),
+
+          fetch(`/api/day-picker/leave?year=${selectedYear}`, {
+            cache: "no-store",
+          }),
+
+          fetch(`/api/day-picker/external-schedules?year=${selectedYear}`, {
+            cache: "no-store",
+          }),
+        ]);
+
+      if (!holidayResponse.ok) {
+        const message = await getResponseMessage(
+          holidayResponse,
+          "공휴일 정보를 불러오지 못했습니다.",
+        );
+
+        throw new Error(message);
+      }
+
+      if (!leaveResponse.ok) {
+        const message = await getResponseMessage(
+          leaveResponse,
+          "연차 정보를 불러오지 못했습니다.",
+        );
+
+        throw new Error(message);
+      }
+
+      if (!externalScheduleResponse.ok) {
+        const message = await getResponseMessage(
+          externalScheduleResponse,
+          "외부 일정 정보를 불러오지 못했습니다.",
+        );
+
+        throw new Error(message);
+      }
+
+      const [holidayData, loadedLeaveDays, loadedExternalSchedules] =
+        (await Promise.all([
+          holidayResponse.json(),
+          leaveResponse.json(),
+          externalScheduleResponse.json(),
+        ])) as [HolidayApiResponse, LeaveDay[], ExternalSchedule[]];
+
+      setHolidays(
+        Array.isArray(holidayData.holidays) ? holidayData.holidays : [],
+      );
+
+      setLeaveDays(Array.isArray(loadedLeaveDays) ? loadedLeaveDays : []);
+
+      setExternalSchedules(
+        Array.isArray(loadedExternalSchedules) ? loadedExternalSchedules : [],
+      );
+    } catch (error) {
+      console.error("작업공간 일정 조회 실패:", error);
+
+      setHolidays([]);
+      setLeaveDays([]);
+      setExternalSchedules([]);
+    } finally {
+      setIsScheduleLoading(false);
+    }
+  }, [selectedYear]);
+
   useEffect(() => {
     void fetchActiveNotes();
   }, [fetchActiveNotes]);
+
+  useEffect(() => {
+    void fetchWorkspaceSchedules();
+  }, [fetchWorkspaceSchedules]);
 
   useEffect(() => {
     let resizeFrame: number | null = null;
@@ -343,7 +544,7 @@ export default function WorkspaceLayer({
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown);
     };
-  }, [isMenuOpen, isDatePickerOpen]);
+  }, [isDatePickerOpen, isMenuOpen]);
 
   const updateLocalNote = useCallback((updatedNote: StickyNote) => {
     setNotes((previousNotes) =>
@@ -402,7 +603,13 @@ export default function WorkspaceLayer({
       });
 
       if (!response.ok) {
-        console.error("스티커 생성 실패");
+        const message = await getResponseMessage(
+          response,
+          "스티커 생성에 실패했습니다.",
+        );
+
+        console.error(message);
+
         return;
       }
 
@@ -420,6 +627,7 @@ export default function WorkspaceLayer({
 
     if (targetNotes.length === 0) {
       setIsMenuOpen(false);
+
       return;
     }
 
@@ -455,6 +663,7 @@ export default function WorkspaceLayer({
 
     if (hiddenNotes.length === 0) {
       setIsMenuOpen(false);
+
       return;
     }
 
@@ -691,8 +900,8 @@ export default function WorkspaceLayer({
     baseDate.setHours(0, 0, 0, 0);
 
     const isExpiredForViewDate =
-      updatedNote.expiresAt &&
-      new Date(updatedNote.expiresAt).getTime() < baseDate.getTime();
+      Boolean(updatedNote.expiresAt) &&
+      new Date(updatedNote.expiresAt as string).getTime() < baseDate.getTime();
 
     if (isExpiredForViewDate) {
       setNotes((previousNotes) =>
@@ -732,6 +941,41 @@ export default function WorkspaceLayer({
         data-scope={scope}
         className="pointer-events-none fixed inset-0 z-[1000]"
       >
+        <div className="fixed left-6 top-5 z-[1100] flex h-10 w-max items-center gap-3 overflow-visible whitespace-nowrap">
+          <h1 className="shrink-0 text-lg font-bold tracking-tight text-neutral-900">
+            {workspaceDateLabel}
+          </h1>
+
+          {isScheduleLoading ? (
+            <span className="shrink-0 text-sm font-medium text-neutral-400">
+              일정 확인 중
+            </span>
+          ) : selectedDateScheduleItems.length === 0 ? (
+            <span className="shrink-0 text-sm font-medium text-neutral-400">
+              일정 없음
+            </span>
+          ) : (
+            <div className="flex w-max shrink-0 items-center gap-3 overflow-visible whitespace-nowrap">
+              {normalScheduleItems.map((item) => (
+                <span
+                  key={item.id}
+                  className={`shrink-0 whitespace-nowrap text-sm font-semibold ${item.className}`}
+                >
+                  {item.label}
+                </span>
+              ))}
+
+              {weekendScheduleItem && (
+                <span
+                  className={`shrink-0 whitespace-nowrap text-sm font-semibold ${weekendScheduleItem.className}`}
+                >
+                  {weekendScheduleItem.label}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
         <div
           data-workspace-controls="true"
           className="pointer-events-auto fixed right-5 top-5 z-[1100] flex items-start gap-2"
@@ -760,10 +1004,11 @@ export default function WorkspaceLayer({
                 strokeLinejoin="round"
               >
                 <rect x="3" y="5" width="18" height="16" rx="2" />
+
                 <path d="M16 3v4M8 3v4M3 10h18" />
               </svg>
 
-              <span>{formatMenuDateLabel(viewDate)}</span>
+              <span>{formatWorkspaceMenuDateLabel(viewDate)}</span>
             </button>
 
             {isDatePickerOpen && (
@@ -772,8 +1017,8 @@ export default function WorkspaceLayer({
                   <AppDayPicker
                     value={viewDate}
                     onChange={handleViewDateChange}
-                    holidays={[]}
-                    paydayDay={25}
+                    holidays={holidays}
+                    paydayDay={PAYDAY_DAY}
                   />
                 </div>
 
