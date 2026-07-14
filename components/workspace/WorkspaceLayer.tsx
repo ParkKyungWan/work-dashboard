@@ -1,18 +1,18 @@
-// components/sticky-note/StickyNoteLayer.tsx
+// components/workspace/WorkspaceLayer.tsx
 
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DayPicker } from "@daypicker/react";
-import { ko } from "@daypicker/react/locale";
-import "@daypicker/react/style.css";
 
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { AppDayPicker } from "@/components/day-picker";
+import StickyNoteCard from "@/components/sticky-note/StickyNoteCard";
+import type { StickyNote } from "@/components/sticky-note/sticky-note.types";
+import { findNewStickyNotePosition } from "@/components/sticky-note/sticky-note.utils";
 
-import StickyNoteCard from "./StickyNoteCard";
-import type { StickyNote, StickyNoteLayerProps } from "./sticky-note.types";
-import { findNewStickyNotePosition } from "./sticky-note.utils";
-import { AppDayPicker } from "../day-picker";
+type WorkspaceLayerProps = {
+  scope?: string;
+};
 
 const DEFAULT_STICKY_NOTE_WIDTH = 320;
 const DEFAULT_STICKY_NOTE_HEIGHT = 360;
@@ -93,6 +93,7 @@ const formatMenuDateLabel = (dateKey: string) => {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
+
   const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
 
   return `${year}.${month}.${day} (${weekday})`;
@@ -127,12 +128,10 @@ const isDateIncludedInNotePeriod = (note: StickyNote, baseDate: Date) => {
   );
 };
 
-export default function StickyNoteLayer({
+export default function WorkspaceLayer({
   scope = "work-log",
-}: StickyNoteLayerProps) {
+}: WorkspaceLayerProps) {
   const [viewDate, setViewDate] = useState(() => toLocalDateKey(new Date()));
-
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
 
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -163,6 +162,7 @@ export default function StickyNoteLayer({
         return (await response.json()) as StickyNote;
       } catch (error) {
         console.error("스티커 수정 중 오류:", error);
+
         return null;
       }
     },
@@ -183,6 +183,7 @@ export default function StickyNoteLayer({
       return true;
     } catch (error) {
       console.error("스티커 삭제 중 오류:", error);
+
       return false;
     }
   }, []);
@@ -329,7 +330,7 @@ export default function StickyNoteLayer({
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
 
-      if (target?.closest("[data-sticky-note-controls='true']")) {
+      if (target?.closest("[data-workspace-controls='true']")) {
         return;
       }
 
@@ -344,31 +345,25 @@ export default function StickyNoteLayer({
     };
   }, [isMenuOpen, isDatePickerOpen]);
 
-  const updateLocalNote = (updatedNote: StickyNote) => {
+  const updateLocalNote = useCallback((updatedNote: StickyNote) => {
     setNotes((previousNotes) =>
       previousNotes.map((note) =>
         note.id === updatedNote.id ? updatedNote : note,
       ),
     );
-  };
+  }, []);
 
   const handleViewDateChange = (nextDate: string) => {
     if (!nextDate) {
       return;
     }
 
-    const nextLocalDate = createLocalDateFromKey(nextDate);
-
     setViewDate(nextDate);
-    setCalendarMonth(nextLocalDate);
     setIsDatePickerOpen(false);
   };
 
   const handleMoveToToday = () => {
-    const today = new Date();
-
-    setViewDate(toLocalDateKey(today));
-    setCalendarMonth(today);
+    setViewDate(toLocalDateKey(new Date()));
     setIsDatePickerOpen(false);
   };
 
@@ -414,7 +409,6 @@ export default function StickyNoteLayer({
       const createdNote = (await response.json()) as StickyNote;
 
       setNotes((previousNotes) => [createdNote, ...previousNotes]);
-
       setIsMenuOpen(false);
     } catch (error) {
       console.error("스티커 생성 중 오류:", error);
@@ -694,11 +688,11 @@ export default function StickyNoteLayer({
     }
 
     const baseDate = createLocalDateFromKey(viewDate);
+    baseDate.setHours(0, 0, 0, 0);
 
     const isExpiredForViewDate =
       updatedNote.expiresAt &&
-      new Date(updatedNote.expiresAt).getTime() <
-        new Date(baseDate.setHours(0, 0, 0, 0)).getTime();
+      new Date(updatedNote.expiresAt).getTime() < baseDate.getTime();
 
     if (isExpiredForViewDate) {
       setNotes((previousNotes) =>
@@ -739,18 +733,14 @@ export default function StickyNoteLayer({
         className="pointer-events-none fixed inset-0 z-[1000]"
       >
         <div
-          data-sticky-note-controls="true"
+          data-workspace-controls="true"
           className="pointer-events-auto fixed right-5 top-5 z-[1100] flex items-start gap-2"
         >
           <div className="relative">
             <button
               type="button"
               onClick={() => {
-                const selectedDate = createLocalDateFromKey(viewDate);
-
-                setCalendarMonth(selectedDate);
                 setIsDatePickerOpen((previous) => !previous);
-
                 setIsMenuOpen(false);
               }}
               disabled={isLoading}
@@ -770,7 +760,6 @@ export default function StickyNoteLayer({
                 strokeLinejoin="round"
               >
                 <rect x="3" y="5" width="18" height="16" rx="2" />
-
                 <path d="M16 3v4M8 3v4M3 10h18" />
               </svg>
 
@@ -779,7 +768,7 @@ export default function StickyNoteLayer({
 
             {isDatePickerOpen && (
               <div className="absolute right-0 top-12 w-56 rounded-md border border-neutral-900 bg-white p-2 text-xs shadow-xl">
-                <div className="sticky-note-calendar overflow-hidden">
+                <div className="overflow-hidden">
                   <AppDayPicker
                     value={viewDate}
                     onChange={handleViewDateChange}
@@ -804,13 +793,12 @@ export default function StickyNoteLayer({
               type="button"
               onClick={() => {
                 setIsMenuOpen((previous) => !previous);
-
                 setIsDatePickerOpen(false);
               }}
               disabled={isLoading}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-900 bg-white text-2xl font-bold shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-              title="스티커 메뉴"
-              aria-label="스티커 메뉴"
+              title="작업 공간 메뉴"
+              aria-label="작업 공간 메뉴"
               aria-expanded={isMenuOpen}
             >
               +
