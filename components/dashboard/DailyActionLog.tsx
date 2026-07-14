@@ -110,7 +110,7 @@ export default function DailyActionLog({
         </div>
       </form>
 
-      <div className="min-h-0 flex-1 overflow-x-auto">
+      <div className="min-h-0 flex-1 overflow-x-auto scrollbar-hidden">
         <div className="flex h-full min-w-[390px] flex-col">
           <div className="grid shrink-0 grid-cols-[58px_92px_minmax(160px,1fr)_34px] items-center px-1 pb-2 text-[11px] font-semibold text-slate-500">
             <span>시간</span>
