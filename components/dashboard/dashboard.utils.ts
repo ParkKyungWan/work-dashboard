@@ -2,8 +2,10 @@
 
 import type { ProcessTaskDraft, WorkStatus } from "./dashboard.types";
 
+type SelectableWorkStatus = Exclude<WorkStatus, "ON_HOLD">;
+
 export const STATUS_OPTIONS: Array<{
-  value: WorkStatus;
+  value: SelectableWorkStatus;
   label: string;
 }> = [
   {
@@ -29,6 +31,10 @@ export function getCurrentTime() {
 }
 
 export function getStatusLabel(status: WorkStatus) {
+  if (status === "ON_HOLD") {
+    return "보류";
+  }
+
   return (
     STATUS_OPTIONS.find((option) => option.value === status)?.label ?? "시행 전"
   );
@@ -36,26 +42,30 @@ export function getStatusLabel(status: WorkStatus) {
 
 export function getStatusClassName(status: WorkStatus) {
   if (status === "IN_PROGRESS") {
-    return "bg-blue-50 text-blue-700";
+    return "bg-sky-50 text-sky-600";
+  }
+
+  if (status === "ON_HOLD") {
+    return "bg-slate-200 text-slate-700";
   }
 
   if (status === "COMPLETED") {
-    return "bg-emerald-50 text-emerald-700";
+    return "bg-emerald-50 text-emerald-600";
   }
 
-  return "bg-slate-100 text-slate-600";
+  return "bg-zinc-100 text-zinc-500";
 }
 
-export function getSelectedStatusClassName(status: WorkStatus) {
+export function getSelectedStatusClassName(status: SelectableWorkStatus) {
   if (status === "IN_PROGRESS") {
-    return "bg-blue-600 text-white shadow-sm";
+    return "bg-sky-100 text-sky-700";
   }
 
   if (status === "COMPLETED") {
-    return "bg-emerald-600 text-white shadow-sm";
+    return "bg-emerald-100 text-emerald-700";
   }
 
-  return "bg-white text-slate-700 shadow-sm";
+  return "bg-white text-slate-600 shadow-sm";
 }
 
 export function createEmptyTaskDraft(): ProcessTaskDraft {

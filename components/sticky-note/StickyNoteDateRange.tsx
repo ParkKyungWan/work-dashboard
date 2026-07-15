@@ -19,24 +19,26 @@ export default function StickyNoteDateRange({
   onPinChange,
 }: StickyNoteDateRangeProps) {
   return (
-    <div className="flex h-[28px] items-center justify-center gap-1 bg-white text-xs">
-      <button
-        type="button"
-        className="hover:underline"
-        title="시작일 캘린더 수정 예정"
-      >
-        {formatShortDate(startDate)}
-      </button>
+    <div className="flex h-9 items-center gap-2 px-2.5">
+      <div className="flex min-w-0 flex-1 items-center rounded-lg bg-slate-100/80 px-2">
+        <button
+          type="button"
+          className="h-7 min-w-0 flex-1 truncate text-[10px] font-medium text-slate-600 transition hover:text-slate-900"
+          title="시작일 캘린더 수정 예정"
+        >
+          {formatShortDate(startDate)}
+        </button>
 
-      <span>~</span>
+        <span className="shrink-0 px-1 text-[10px] text-slate-400">—</span>
 
-      <button
-        type="button"
-        className="border border-neutral-400 px-1 hover:bg-neutral-100"
-        title="종료일 캘린더 수정 예정"
-      >
-        {formatShortDate(expiresAt)}
-      </button>
+        <button
+          type="button"
+          className="h-7 min-w-0 flex-1 truncate text-[10px] font-medium text-slate-600 transition hover:text-slate-900"
+          title="종료일 캘린더 수정 예정"
+        >
+          {formatShortDate(expiresAt)}
+        </button>
+      </div>
 
       <StickyNotePinToggle pinned={pinned} onChange={onPinChange} />
     </div>

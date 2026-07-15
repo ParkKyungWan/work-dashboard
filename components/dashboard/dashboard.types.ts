@@ -1,6 +1,6 @@
 // components/dashboard/dashboard.types.ts
 
-export type WorkStatus = "BEFORE" | "IN_PROGRESS" | "COMPLETED";
+export type WorkStatus = "BEFORE" | "IN_PROGRESS" | "ON_HOLD" | "COMPLETED";
 
 export type DailyActionLogItem = {
   id: string;

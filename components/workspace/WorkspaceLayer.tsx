@@ -988,7 +988,7 @@ export default function WorkspaceLayer({
                 setIsMenuOpen(false);
               }}
               disabled={isLoading}
-              className="flex h-10 items-center justify-center gap-2 rounded-full border border-neutral-900 bg-white px-3 text-xs font-semibold text-neutral-900 shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 items-center justify-center gap-2 rounded-full cursor-pointer bg-white px-3 text-xs font-semibold text-neutral-900 shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               title="조회 날짜 선택"
               aria-label="조회 날짜 선택"
               aria-expanded={isDatePickerOpen}
@@ -1012,7 +1012,7 @@ export default function WorkspaceLayer({
             </button>
 
             {isDatePickerOpen && (
-              <div className="absolute right-0 top-12 w-56 rounded-md border border-neutral-900 bg-white p-2 text-xs shadow-xl">
+              <div className="absolute right-0 top-12 w-56 rounded-md card-shadow bg-white p-2 text-xs shadow-xl">
                 <div className="overflow-hidden">
                   <AppDayPicker
                     value={viewDate}
@@ -1041,7 +1041,7 @@ export default function WorkspaceLayer({
                 setIsDatePickerOpen(false);
               }}
               disabled={isLoading}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-900 bg-white text-2xl font-bold shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-10 items-center justify-center rounded-full cursor-pointer bg-white text-2xl font-bold shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               title="작업 공간 메뉴"
               aria-label="작업 공간 메뉴"
               aria-expanded={isMenuOpen}
@@ -1050,7 +1050,7 @@ export default function WorkspaceLayer({
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 top-12 w-48 overflow-hidden rounded-md border border-neutral-900 bg-white text-xs shadow-xl">
+              <div className="absolute right-0 top-12 w-48 overflow-hidden rounded-md card-shadow bg-white text-xs shadow-xl">
                 <button
                   type="button"
                   onClick={handleCreate}

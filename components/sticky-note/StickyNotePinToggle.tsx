@@ -18,10 +18,30 @@ export default function StickyNotePinToggle({
         event.stopPropagation();
         onChange(!pinned);
       }}
-      className="ml-1"
+      className={[
+        "grid size-7 shrink-0 place-items-center rounded-lg",
+        "text-xs transition",
+        pinned
+          ? "bg-slate-200 text-slate-700"
+          : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600",
+      ].join(" ")}
       title={pinned ? "고정 해제" : "위치 고정"}
+      aria-label={pinned ? "고정 해제" : "위치 고정"}
     >
-      {pinned ? "📌" : "📍"}
+      <svg
+        viewBox="0 0 20 20"
+        fill="none"
+        className="size-3.5"
+        aria-hidden="true"
+      >
+        <path
+          d="M7 3.5h6M8 3.5v4l-2 2v1h8v-1l-2-2v-4M10 10.5v6"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </button>
   );
 }

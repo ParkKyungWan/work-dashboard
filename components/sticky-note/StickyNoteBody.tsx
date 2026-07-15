@@ -12,7 +12,7 @@ export default function StickyNoteBody({
   onContentChange,
 }: StickyNoteBodyProps) {
   return (
-    <div className="h-full bg-transparent p-2">
+    <div className="h-full bg-transparent px-3 pb-3 pt-2">
       <textarea
         value={content}
         onChange={(event) => onContentChange(event.target.value)}
@@ -20,7 +20,12 @@ export default function StickyNoteBody({
         spellCheck={false}
         autoCorrect="off"
         autoCapitalize="off"
-        className="h-full w-full resize-none border-none bg-transparent text-xs text-neutral-800 outline-none"
+        className={[
+          "h-full w-full resize-none border-none bg-transparent",
+          "text-xs leading-5 text-slate-800",
+          "outline-none placeholder:text-slate-500/60",
+          "scrollbar-soft",
+        ].join(" ")}
       />
     </div>
   );

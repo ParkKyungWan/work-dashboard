@@ -60,8 +60,8 @@ export default function ProcessTaskList({
 
   return (
     <>
-      <section className="min-h-[620px] min-w-0 rounded-2xl bg-white p-4 shadow-[0_5px_20px_rgba(15,23,42,0.04)]">
-        <header className="mb-4 flex items-center justify-between gap-3">
+      <section className="flex min-h-[620px] min-w-0 flex-col rounded-[12px] border border-slate-200/70 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06),0_2px_8px_rgba(15,23,42,0.03)]">
+        <header className="mb-5 flex shrink-0 items-center justify-between gap-3">
           <div>
             <h2 className="text-[15px] font-bold tracking-[-0.02em] text-slate-800">
               진행 업무
@@ -73,14 +73,14 @@ export default function ProcessTaskList({
           <button
             type="button"
             onClick={() => setIsTaskModalOpen(true)}
-            className="h-8 rounded-lg border border-blue-200 bg-white px-3 text-[11px] font-semibold text-blue-600 transition hover:border-blue-300 hover:bg-blue-50"
+            className="h-8 shrink-0 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 shadow-[0_2px_6px_rgba(15,23,42,0.05)] transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100"
           >
             + 업무 추가
           </button>
         </header>
 
         {tasks.length > 0 ? (
-          <div className="space-y-2">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-soft">
             {tasks.map((task) => (
               <ProcessTaskCard
                 key={task.id}
@@ -94,7 +94,7 @@ export default function ProcessTaskList({
             ))}
           </div>
         ) : (
-          <div className="flex min-h-[420px] items-center justify-center rounded-lg bg-slate-50/70">
+          <div className="flex min-h-0 flex-1 items-center justify-center">
             <div className="text-center">
               <p className="text-xs font-medium text-slate-500">
                 진행 중인 업무가 없습니다.
@@ -103,7 +103,7 @@ export default function ProcessTaskList({
               <button
                 type="button"
                 onClick={() => setIsTaskModalOpen(true)}
-                className="mt-3 text-[11px] font-semibold text-blue-600 hover:text-blue-700"
+                className="mt-3 rounded-lg px-3 py-2 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
               >
                 새 업무 추가
               </button>
