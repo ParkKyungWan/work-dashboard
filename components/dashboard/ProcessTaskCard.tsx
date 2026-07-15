@@ -32,11 +32,19 @@ export default function ProcessTaskCard({
   return (
     <article
       className={[
-        "overflow-hidden rounded-xl bg-white",
-        "transition-shadow duration-150",
+        "overflow-hidden rounded-xl",
+        "border border-slate-200/70",
         isExpanded
-          ? "ring-1 ring-slate-200/50 shadow-[0_6px_18px_rgba(15,23,42,0.07)]"
-          : "shadow-[0_2px_8px_rgba(15,23,42,0.045)] hover:shadow-[0_5px_14px_rgba(15,23,42,0.07)]",
+          ? [
+              "border-slate-300/80",
+              "ring-1 ring-slate-200/60",
+              "shadow-[0_7px_20px_rgba(15,23,42,0.08)]",
+            ].join(" ")
+          : [
+              "shadow-[0_2px_7px_rgba(15,23,42,0.055)]",
+              "hover:border-slate-300/80",
+              "hover:shadow-[0_5px_15px_rgba(15,23,42,0.075)]",
+            ].join(" "),
       ].join(" ")}
     >
       <button
@@ -72,7 +80,7 @@ export default function ProcessTaskCard({
 
         <span
           className={[
-            "shrink-0 text-[13px] text-slate-400 transition-transform",
+            "shrink-0 text-[10px] text-slate-400 transition-transform",
             isExpanded ? "rotate-180" : "",
           ].join(" ")}
           aria-hidden="true"
@@ -112,7 +120,7 @@ export default function ProcessTaskCard({
                       type="button"
                       onClick={() => onUpdateStatus(option.value)}
                       className={[
-                        "h-7 rounded-md px-1 text-[13px] font-semibold transition",
+                        "h-7 rounded-md px-1 text-[10px] font-semibold transition",
                         isSelected
                           ? getSelectedStatusClassName(option.value)
                           : "text-slate-500 hover:bg-white hover:text-slate-700",
@@ -132,7 +140,7 @@ export default function ProcessTaskCard({
                   }
                   className={[
                     "flex h-8 items-center justify-center gap-1.5 rounded-lg px-2",
-                    "text-[13px] font-semibold transition",
+                    "text-[10px] font-semibold transition",
                     isOnHold
                       ? "bg-slate-200 text-slate-700 shadow-[0_1px_4px_rgba(15,23,42,0.08)] hover:bg-slate-300"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800",
@@ -154,7 +162,7 @@ export default function ProcessTaskCard({
                   onClick={onDelete}
                   className={[
                     "flex h-8 items-center justify-center gap-1.5 rounded-lg px-2",
-                    "bg-transparent text-[13px] font-semibold text-slate-400",
+                    "bg-transparent text-[10px] font-semibold text-slate-400",
                     "transition hover:bg-red-50 hover:text-red-600",
                   ].join(" ")}
                 >
