@@ -981,7 +981,6 @@ export default function WorkspaceLayer({
             </div>
           )}
         </div>
-
         <div
           data-workspace-controls="true"
           className="pointer-events-auto fixed right-5 top-5 z-[1100] flex items-start gap-2"
