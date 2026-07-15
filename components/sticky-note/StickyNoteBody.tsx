@@ -21,9 +21,12 @@ export default function StickyNoteBody({
         autoCorrect="off"
         autoCapitalize="off"
         className={[
-          "h-full w-full resize-none border-none bg-transparent",
+          "h-full w-full resize-none border-0 bg-transparent",
           "text-xs leading-5 text-slate-800",
-          "outline-none placeholder:text-slate-500/60",
+          "outline-none ring-0 shadow-none",
+          "focus:border-0 focus:outline-none focus:ring-0 focus:shadow-none",
+          "focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-none",
+          "placeholder:text-slate-500/60",
           "scrollbar-soft",
         ].join(" ")}
       />

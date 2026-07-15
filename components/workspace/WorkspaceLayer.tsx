@@ -948,16 +948,16 @@ export default function WorkspaceLayer({
         className="pointer-events-none fixed inset-0 z-[1000]"
       >
         <div className="fixed left-6 top-5 z-[1100] flex h-10 w-max items-center gap-3 overflow-visible whitespace-nowrap">
-          <h1 className="shrink-0 text-lg font-bold tracking-tight text-neutral-900">
+          <h1 className="shrink-0 text-[21px] font-bold tracking-tight text-neutral-900">
             {workspaceDateLabel}
           </h1>
 
           {isScheduleLoading ? (
-            <span className="shrink-0 text-sm font-medium text-neutral-400">
+            <span className="shrink-0 text-[18px] font-medium text-neutral-400">
               일정 확인 중
             </span>
           ) : selectedDateScheduleItems.length === 0 ? (
-            <span className="shrink-0 text-sm font-medium text-neutral-400">
+            <span className="shrink-0 text-[18px] font-medium text-neutral-400">
               일정 없음
             </span>
           ) : (
@@ -965,7 +965,7 @@ export default function WorkspaceLayer({
               {normalScheduleItems.map((item) => (
                 <span
                   key={item.id}
-                  className={`shrink-0 whitespace-nowrap text-sm font-semibold ${item.className}`}
+                  className={`shrink-0 whitespace-nowrap text-[18px] font-semibold ${item.className}`}
                 >
                   {item.label}
                 </span>
@@ -973,7 +973,7 @@ export default function WorkspaceLayer({
 
               {weekendScheduleItem && (
                 <span
-                  className={`shrink-0 whitespace-nowrap text-sm font-semibold ${weekendScheduleItem.className}`}
+                  className={`shrink-0 whitespace-nowrap text-[18px] font-semibold ${weekendScheduleItem.className}`}
                 >
                   {weekendScheduleItem.label}
                 </span>
@@ -994,7 +994,7 @@ export default function WorkspaceLayer({
                 setIsMenuOpen(false);
               }}
               disabled={isLoading}
-              className="flex h-10 items-center justify-center gap-2 rounded-full cursor-pointer bg-white px-3 text-xs font-semibold text-neutral-900 shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 items-center justify-center gap-2 rounded-full cursor-pointer bg-white px-3 text-[13px] font-semibold text-neutral-900 shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               title="조회 날짜 선택"
               aria-label="조회 날짜 선택"
               aria-expanded={isDatePickerOpen}
@@ -1014,11 +1014,13 @@ export default function WorkspaceLayer({
                 <path d="M16 3v4M8 3v4M3 10h18" />
               </svg>
 
-              <span>{formatWorkspaceMenuDateLabel(viewDate)}</span>
+              <span className="text-[13px] font-medium">
+                {formatWorkspaceMenuDateLabel(viewDate)}
+              </span>
             </button>
 
             {isDatePickerOpen && (
-              <div className="absolute right-0 top-12 w-56 rounded-md card-shadow bg-white p-2 text-xs shadow-xl">
+              <div className="absolute right-0 top-12 w-56 rounded-md card-shadow bg-white p-2 text-[13px] shadow-xl">
                 <div className="overflow-hidden">
                   <AppDayPicker
                     value={viewDate}
@@ -1052,11 +1054,16 @@ export default function WorkspaceLayer({
               aria-label="작업 공간 메뉴"
               aria-expanded={isMenuOpen}
             >
-              +
+              <img
+                src="/icons/stickerIcon.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-5 w-5 opacity-75"
+              />
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 top-12 w-48 overflow-hidden rounded-md card-shadow bg-white text-xs shadow-xl">
+              <div className="absolute right-0 top-12 w-48 overflow-hidden rounded-md card-shadow bg-white text-[13px] shadow-xl">
                 <button
                   type="button"
                   onClick={handleCreate}

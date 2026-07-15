@@ -77,13 +77,13 @@ export default function ConfirmDialog({
           <div className="min-w-0 flex-1">
             <h2
               id="confirm-dialog-title"
-              className="text-sm font-semibold leading-5 text-slate-900"
+              className="text-[15px] font-semibold leading-5 text-slate-900"
             >
               {title}
             </h2>
 
             {description && (
-              <p className="mt-1.5 whitespace-pre-line text-xs leading-5 text-slate-500">
+              <p className="mt-1.5 whitespace-pre-line text-[13px] leading-5 text-slate-500">
                 {description}
               </p>
             )}
@@ -94,7 +94,7 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="h-9 rounded-lg bg-slate-100 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-800 active:bg-slate-300"
+            className="h-9 rounded-lg bg-slate-100 text-[13px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-800 active:bg-slate-300"
           >
             {cancelText}
           </button>
@@ -103,7 +103,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             className={[
-              "h-9 rounded-lg text-xs font-semibold transition",
+              "h-9 rounded-lg text-[13px] font-semibold transition",
               danger
                 ? "bg-red-500 text-white shadow-[0_2px_6px_rgba(239,68,68,0.2)] hover:bg-red-600 active:bg-red-700"
                 : "bg-slate-700 text-white shadow-[0_2px_6px_rgba(15,23,42,0.14)] hover:bg-slate-800 active:bg-slate-900",

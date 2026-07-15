@@ -19,7 +19,7 @@ export default function StickyNoteDateRange({
   onPinChange,
 }: StickyNoteDateRangeProps) {
   return (
-    <div className="flex h-9 items-center gap-2 px-2.5">
+    <div className="flex h-12 items-center gap-2 px-2.5">
       <div className="flex min-w-0 flex-1 items-center rounded-lg bg-slate-100/80 px-2">
         <button
           type="button"

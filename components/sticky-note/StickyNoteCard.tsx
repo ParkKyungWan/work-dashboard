@@ -598,7 +598,7 @@ export default function StickyNoteCard({
             <div
               data-resize-handle="true"
               onMouseDown={handleResizeStart}
-              className="h-3 shrink-0 cursor-ns-resize border-t border-neutral-300 bg-neutral-100 hover:bg-neutral-200"
+              className="h-2 shrink-0 cursor-ns-resize border-t border-neutral-300 bg-neutral-100 hover:bg-neutral-200"
               title="위아래 크기 조절"
             />
           </>

@@ -11,7 +11,7 @@ export default function StickyNoteDockHandle({
 }: StickyNoteDockHandleProps) {
   return (
     <div className="flex h-[150px] items-center justify-center border-b border-neutral-900 bg-yellow-200">
-      <span className="text-lg font-extrabold text-black [writing-mode:vertical-rl]">
+      <span className="text-[12px] font-extrabold text-black [writing-mode:vertical-rl]">
         {label}
       </span>
     </div>

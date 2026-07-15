@@ -19,8 +19,8 @@ export default function StickyNotePinToggle({
         onChange(!pinned);
       }}
       className={[
-        "grid size-7 shrink-0 place-items-center rounded-lg",
-        "text-xs transition",
+        "grid size-8 shrink-0 place-items-center rounded-lg",
+        "text-[12px] transition",
         pinned
           ? "bg-slate-200 text-slate-700"
           : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600",
@@ -31,7 +31,7 @@ export default function StickyNotePinToggle({
       <svg
         viewBox="0 0 20 20"
         fill="none"
-        className="size-3.5"
+        className="size-4.5"
         aria-hidden="true"
       >
         <path

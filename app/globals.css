@@ -196,12 +196,12 @@ button {
 .page-paper-background {
   background:
     radial-gradient(
-      circle at 16% 5%,
-      rgba(255, 255, 255, 0.92) 0%,
-      rgba(255, 255, 255, 0.42) 28%,
-      transparent 55%
+      circle at 15% 0%,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.18) 34%,
+      transparent 60%
     ),
-    linear-gradient(135deg, #f7f7f6 0%, #eff0ef 52%, #e3e5e8 100%);
+    linear-gradient(180deg, #f6f6f4 0%, #f1f2f1 100%);
 
   background-attachment: fixed;
 }
@@ -291,4 +291,11 @@ button {
   .card-shadow-interactive {
     transition: none;
   }
+}
+
+/* remove focus */
+textarea:focus,
+textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }

@@ -10,8 +10,8 @@ type StickyNoteQuickDateButtonsProps = {
 };
 
 const BUTTON_CLASS_NAME = [
-  "h-7 min-w-0 flex-1 rounded-md px-1",
-  "text-[10px] font-semibold text-slate-600",
+  "h-5.5 min-w-0 flex-1 rounded-md px-1",
+  "text-xs font-semibold text-slate-600",
   "transition hover:bg-white hover:text-slate-900",
 ].join(" ");
 

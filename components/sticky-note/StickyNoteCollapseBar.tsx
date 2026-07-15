@@ -21,7 +21,7 @@ export default function StickyNoteCollapseBar({
       className={[
         "flex h-7 w-full shrink-0 items-center justify-center gap-1",
         "border-none bg-black/[0.035]",
-        "text-[10px] font-semibold text-slate-600",
+        "text-[8px] font-semibold text-slate-600",
         "transition hover:bg-black/[0.06] hover:text-slate-800",
       ].join(" ")}
       title={collapsed ? "설정 영역 펼치기" : "설정 영역 접기"}
