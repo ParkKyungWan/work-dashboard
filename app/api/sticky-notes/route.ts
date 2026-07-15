@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
     y?: number;
     dockOrder?: number;
     startDate?: string;
+    colorHue?: number;
+    colorSaturation?: number;
+    colorLightness?: number;
   } = {};
 
   try {
@@ -32,6 +35,9 @@ export async function POST(request: NextRequest) {
     y: body.y ?? null,
     dockOrder: body.dockOrder,
     startDate: body.startDate,
+    colorHue: body.colorHue,
+    colorSaturation: body.colorSaturation,
+    colorLightness: body.colorLightness,
   });
 
   return NextResponse.json(note);

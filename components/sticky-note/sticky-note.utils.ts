@@ -9,58 +9,40 @@ type PostItColor = Pick<
 
 const MATERIAL_MINIMAL_POST_IT_COLORS: PostItColor[] = [
   {
-    // Soft yellow
+    // 노랑
     colorHue: 48,
-    colorSaturation: 72,
+    colorSaturation: 52,
+    colorLightness: 87,
+  },
+  {
+    // 연한 노랑
+    colorHue: 52,
+    colorSaturation: 46,
+    colorLightness: 90,
+  },
+  {
+    // 핑크
+    colorHue: 342,
+    colorSaturation: 46,
+    colorLightness: 89,
+  },
+  {
+    // 연한 핑크
+    colorHue: 352,
+    colorSaturation: 40,
     colorLightness: 91,
   },
   {
-    // Warm ivory
-    colorHue: 42,
-    colorSaturation: 48,
-    colorLightness: 93,
+    // 주황
+    colorHue: 26,
+    colorSaturation: 50,
+    colorLightness: 88,
   },
   {
-    // Soft peach
-    colorHue: 24,
-    colorSaturation: 66,
-    colorLightness: 92,
-  },
-  {
-    // Soft rose
-    colorHue: 355,
-    colorSaturation: 46,
-    colorLightness: 93,
-  },
-  {
-    // Soft lavender
-    colorHue: 258,
-    colorSaturation: 42,
-    colorLightness: 93,
-  },
-  {
-    // Soft blue
-    colorHue: 210,
-    colorSaturation: 55,
-    colorLightness: 93,
-  },
-  {
-    // Soft mint
-    colorHue: 158,
-    colorSaturation: 42,
-    colorLightness: 92,
-  },
-  {
-    // Soft sage
-    colorHue: 112,
-    colorSaturation: 28,
-    colorLightness: 92,
-  },
-  {
-    // Neutral gray
-    colorHue: 210,
-    colorSaturation: 14,
-    colorLightness: 94,
+    // 연한 주황
+    colorHue: 20,
+    colorSaturation: 44,
+    colorLightness: 90,
   },
 ];
 

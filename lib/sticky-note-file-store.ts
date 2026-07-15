@@ -41,10 +41,6 @@ function createStickyNoteId() {
   return `note_${yyyy}${mm}${dd}_${hh}${mi}${ss}_${random}`;
 }
 
-function randomBetween(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 function toLocalDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -73,6 +69,24 @@ function createEndOfLocalDayISOString(dateKey: string) {
   return date.toISOString();
 }
 
+function isValidHue(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= 360
+  );
+}
+
+function isValidPercentage(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= 100
+  );
+}
+
 function toIndexItem(note: StickyNote): StickyNoteIndexItem {
   return {
     id: note.id,
@@ -94,6 +108,25 @@ async function readIndex(): Promise<StickyNoteIndexItem[]> {
     return JSON.parse(content) as StickyNoteIndexItem[];
   } catch {
     return [];
+  }
+}
+
+async function cleanOrphanedIndexItems() {
+  await ensureStore();
+
+  const indexItems = await readIndex();
+  const files = await readdir(NOTES_DIR);
+
+  const existingIds = new Set(
+    files
+      .filter((file) => file.endsWith(".json"))
+      .map((file) => file.replace(/\.json$/, "")),
+  );
+
+  const cleanedItems = indexItems.filter((item) => existingIds.has(item.id));
+
+  if (cleanedItems.length !== indexItems.length) {
+    await writeIndex(cleanedItems);
   }
 }
 
@@ -127,13 +160,6 @@ async function removeIndexItem(id: string) {
   await writeIndex(nextIndexItems);
 }
 
-/**
- * 선택한 날짜 기준으로 해당 스티커가 보여야 하는지 판단합니다.
- *
- * 기준:
- * - 스티커 시작일 <= 선택 날짜의 끝
- * - 스티커 종료일이 없거나, 종료일 >= 선택 날짜의 시작
- */
 function isDateInRange(
   targetDateString: string,
   startDateString: string,
@@ -156,7 +182,6 @@ function isDateInRange(
 
 function isNowInRange(note: StickyNoteIndexItem) {
   const now = Date.now();
-
   const start = new Date(note.startDate).getTime();
 
   if (start > now) {
@@ -267,20 +292,16 @@ export async function createStickyNote(options?: {
   y?: number | null;
   dockOrder?: number;
   startDate?: string;
+  colorHue?: number;
+  colorSaturation?: number;
+  colorLightness?: number;
 }): Promise<StickyNote> {
   await ensureStore();
 
   const now = new Date().toISOString();
   const existingIndexItems = await readIndex();
-
   const id = createStickyNoteId();
 
-  /**
-   * 기준 날짜.
-   *
-   * 프론트에서 viewDate를 넘기면 그 날짜 기준으로 생성합니다.
-   * 없으면 실제 오늘 기준으로 생성합니다.
-   */
   const baseDateKey = options?.startDate ?? toLocalDateKey(new Date());
 
   const note: StickyNote = {
@@ -289,11 +310,6 @@ export async function createStickyNote(options?: {
     content: "",
     status: "ACTIVE",
 
-    /**
-     * 기본 정책:
-     * 새 스티커는 당일 스티커입니다.
-     * 필요하면 사용자가 직접 기간을 연장합니다.
-     */
     startDate: createStartOfLocalDayISOString(baseDateKey),
     expiresAt: createEndOfLocalDayISOString(baseDateKey),
 
@@ -308,13 +324,15 @@ export async function createStickyNote(options?: {
     collapsed: false,
     pinned: false,
 
-    /**
-     * 노란색 계열은 유지하고,
-     * 명도/채도 중심으로 랜덤하게 조절합니다.
-     */
-    colorHue: randomBetween(47, 53),
-    colorSaturation: randomBetween(55, 85),
-    colorLightness: randomBetween(70, 90),
+    colorHue: isValidHue(options?.colorHue) ? options.colorHue : 210,
+
+    colorSaturation: isValidPercentage(options?.colorSaturation)
+      ? options.colorSaturation
+      : 26,
+
+    colorLightness: isValidPercentage(options?.colorLightness)
+      ? options.colorLightness
+      : 93,
 
     dailyLogId: null,
     archivedAt: null,

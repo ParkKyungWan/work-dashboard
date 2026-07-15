@@ -16,7 +16,10 @@ import {
 } from "@/components/day-picker/day-picker.utils";
 import StickyNoteCard from "@/components/sticky-note/StickyNoteCard";
 import type { StickyNote } from "@/components/sticky-note/sticky-note.types";
-import { findNewStickyNotePosition } from "@/components/sticky-note/sticky-note.utils";
+import {
+  createRandomPostItColor,
+  findNewStickyNotePosition,
+} from "@/components/sticky-note/sticky-note.utils";
 
 import type {
   ExternalSchedule,
@@ -588,6 +591,8 @@ export default function WorkspaceLayer({
       DEFAULT_STICKY_NOTE_HEIGHT,
     );
 
+    const randomColor = createRandomPostItColor();
+
     try {
       const response = await fetch("/api/sticky-notes", {
         method: "POST",
@@ -599,6 +604,7 @@ export default function WorkspaceLayer({
           y: fittedPosition.y,
           dockOrder: notes.length,
           startDate: viewDate,
+          ...randomColor,
         }),
       });
 
