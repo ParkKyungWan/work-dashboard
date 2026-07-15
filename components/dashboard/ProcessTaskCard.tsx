@@ -57,13 +57,13 @@ export default function ProcessTaskCard({
           ))}
         </span>
 
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-800">
           {task.title}
         </span>
 
         <span
           className={[
-            "shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold",
+            "shrink-0 rounded-md px-2 py-1 text-[13px] font-semibold",
             getStatusClassName(task.status),
           ].join(" ")}
         >
@@ -72,7 +72,7 @@ export default function ProcessTaskCard({
 
         <span
           className={[
-            "shrink-0 text-[10px] text-slate-400 transition-transform",
+            "shrink-0 text-[13px] text-slate-400 transition-transform",
             isExpanded ? "rotate-180" : "",
           ].join(" ")}
           aria-hidden="true"
@@ -85,7 +85,7 @@ export default function ProcessTaskCard({
         <div className="px-3 pb-3 pt-2">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_220px]">
             <div className="min-w-0">
-              <p className="mb-1.5 text-[11px] font-semibold text-slate-500">
+              <p className="mb-1.5 text-[14px] font-semibold text-slate-500">
                 메모
               </p>
 
@@ -93,12 +93,12 @@ export default function ProcessTaskCard({
                 value={task.memo}
                 onChange={(event) => onUpdateMemo(event.target.value)}
                 placeholder="업무 진행 내용을 입력하세요"
-                className="min-h-24 w-full resize-y rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2 text-xs leading-5 text-slate-700 outline-none transition placeholder:text-slate-400 hover:bg-white focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-400/10"
+                className="min-h-24 w-full resize-y rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2 text-[13px] leading-5 text-slate-700 outline-none transition placeholder:text-slate-400 hover:bg-white focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-400/10"
               />
             </div>
 
             <aside className="flex min-w-0 flex-col">
-              <p className="mb-1.5 text-[11px] font-semibold text-slate-500">
+              <p className="mb-1.5 text-[14px] font-semibold text-slate-500">
                 상태
               </p>
 
@@ -112,7 +112,7 @@ export default function ProcessTaskCard({
                       type="button"
                       onClick={() => onUpdateStatus(option.value)}
                       className={[
-                        "h-7 rounded-md px-1 text-[10px] font-semibold transition",
+                        "h-7 rounded-md px-1 text-[13px] font-semibold transition",
                         isSelected
                           ? getSelectedStatusClassName(option.value)
                           : "text-slate-500 hover:bg-white hover:text-slate-700",
@@ -132,7 +132,7 @@ export default function ProcessTaskCard({
                   }
                   className={[
                     "flex h-8 items-center justify-center gap-1.5 rounded-lg px-2",
-                    "text-[10px] font-semibold transition",
+                    "text-[13px] font-semibold transition",
                     isOnHold
                       ? "bg-slate-200 text-slate-700 shadow-[0_1px_4px_rgba(15,23,42,0.08)] hover:bg-slate-300"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800",
@@ -154,7 +154,7 @@ export default function ProcessTaskCard({
                   onClick={onDelete}
                   className={[
                     "flex h-8 items-center justify-center gap-1.5 rounded-lg px-2",
-                    "bg-transparent text-[10px] font-semibold text-slate-400",
+                    "bg-transparent text-[13px] font-semibold text-slate-400",
                     "transition hover:bg-red-50 hover:text-red-600",
                   ].join(" ")}
                 >

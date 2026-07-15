@@ -46,7 +46,7 @@ export default function DailyActionLog({
   }
 
   return (
-    <section className="flex min-h-[620px] min-w-0 flex-col rounded-[12px] border border-slate-200/70 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06),0_2px_8px_rgba(15,23,42,0.03)]">
+    <section className="flex min-h-[620px] min-w-0 flex-col rounded-[12px] p-4 card-shadow card-paper-background">
       <header className="mb-5 shrink-0">
         <h1 className="text-[15px] font-bold tracking-[-0.02em] text-slate-800">
           오늘의 조치 일지
@@ -59,7 +59,7 @@ export default function DailyActionLog({
           value={target}
           onChange={(event) => setTarget(event.target.value)}
           placeholder="사번 또는 부서/이름"
-          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-400/10"
+          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-400/10"
         />
 
         <input
@@ -67,7 +67,7 @@ export default function DailyActionLog({
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           placeholder="조치 내용을 입력하세요"
-          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-400/10"
+          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-400/10"
         />
 
         <div className="flex h-9 gap-2">
@@ -89,14 +89,14 @@ export default function DailyActionLog({
                     setIsTimeEditing(false);
                   }
                 }}
-                className="h-full w-full bg-transparent px-3 text-center text-xs font-semibold tabular-nums text-slate-700 outline-none"
+                className="h-full w-full bg-transparent px-3 text-center text-[13px] font-semibold tabular-nums text-slate-700 outline-none"
               />
             ) : (
               <button
                 type="button"
                 onClick={() => setIsTimeEditing(true)}
                 aria-label="기록 시간 수정"
-                className="h-full w-full px-3 text-xs font-semibold tabular-nums text-slate-700 transition hover:bg-slate-50"
+                className="h-full w-full px-3 text-[13px] font-semibold tabular-nums text-slate-700 transition hover:bg-slate-50"
               >
                 {time}
               </button>
@@ -105,7 +105,7 @@ export default function DailyActionLog({
 
           <button
             type="submit"
-            className="shrink-0 rounded-lg bg-slate-800 px-4 text-xs font-semibold text-white transition hover:bg-slate-700 active:bg-slate-900"
+            className="shrink-0 rounded-lg bg-slate-800 px-4 text-[13px] font-semibold transition hover:bg-slate-700 active:bg-slate-900 text-white"
           >
             기록
           </button>
@@ -114,7 +114,7 @@ export default function DailyActionLog({
 
       <div className="min-h-0 flex-1">
         <div className="flex h-full min-w-0 flex-col">
-          <div className="grid shrink-0 grid-cols-[52px_88px_minmax(0,1fr)_28px] items-center rounded-lg bg-slate-100/70 px-2 py-2 text-[11px] font-semibold text-slate-500">
+          <div className="grid shrink-0 grid-cols-[52px_88px_minmax(0,1fr)_28px] items-center rounded-lg bg-slate-100/70 px-2 py-2 text-[14px] font-semibold text-slate-500">
             <span>시간</span>
             <span>대상</span>
             <span>작업 내용</span>
@@ -126,7 +126,7 @@ export default function DailyActionLog({
               {actionLogs.map((actionLog) => (
                 <div
                   key={actionLog.id}
-                  className="group grid min-w-0 grid-cols-[52px_88px_minmax(0,1fr)_28px] items-center rounded-lg px-2 py-2.5 text-[11px] text-slate-700 transition-colors hover:bg-slate-50"
+                  className="group grid min-w-0 grid-cols-[52px_88px_minmax(0,1fr)_28px] items-center rounded-lg px-2 py-2.5 text-[14px] text-slate-700 transition-colors hover:bg-slate-50"
                 >
                   <span className="tabular-nums text-slate-500">
                     {actionLog.time}
@@ -160,11 +160,11 @@ export default function DailyActionLog({
           ) : (
             <div className="flex min-h-0 flex-1 items-center justify-center">
               <div className="text-center">
-                <p className="text-xs font-medium text-slate-500">
+                <p className="text-[14px] font-medium text-slate-500">
                   아직 기록된 조치가 없습니다.
                 </p>
 
-                <p className="mt-1 text-[11px] text-slate-400">
+                <p className="mt-1 text-[13px] text-slate-400">
                   위 입력창에서 오늘의 조치를 기록하세요.
                 </p>
               </div>

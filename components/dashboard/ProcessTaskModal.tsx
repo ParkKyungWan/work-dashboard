@@ -120,7 +120,7 @@ export default function ProcessTaskModal({
           <div>
             <label
               htmlFor="new-process-task-title"
-              className="mb-1.5 block text-[11px] font-semibold text-slate-600"
+              className="mb-1.5 block text-[14px] font-semibold text-slate-600"
             >
               업무 제목
             </label>
@@ -132,12 +132,12 @@ export default function ProcessTaskModal({
               autoFocus
               onChange={(event) => updateTitle(event.target.value)}
               placeholder="업무 제목을 입력하세요"
-              className="h-9 w-full rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+              className="h-9 w-full rounded-lg border border-slate-200 px-3 text-[13px] font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
             />
           </div>
 
           <div>
-            <p className="mb-1.5 text-[11px] font-semibold text-slate-600">
+            <p className="mb-1.5 text-[14px] font-semibold text-slate-600">
               상태
             </p>
 
@@ -151,7 +151,7 @@ export default function ProcessTaskModal({
                     type="button"
                     onClick={() => updateStatus(option.value)}
                     className={[
-                      "h-8 rounded-md px-2 text-[10px] font-semibold transition",
+                      "h-8 rounded-md px-2 text-[13px] font-semibold transition",
                       isSelected
                         ? getSelectedStatusClassName(option.value)
                         : "text-slate-500 hover:bg-white hover:text-slate-700",
@@ -167,7 +167,7 @@ export default function ProcessTaskModal({
           <div>
             <label
               htmlFor="new-process-task-memo"
-              className="mb-1.5 block text-[11px] font-semibold text-slate-600"
+              className="mb-1.5 block text-[14px] font-semibold text-slate-600"
             >
               메모
             </label>
@@ -177,7 +177,7 @@ export default function ProcessTaskModal({
               value={taskDraft.memo}
               onChange={(event) => updateMemo(event.target.value)}
               placeholder="업무 진행 내용을 입력하세요"
-              className="min-h-28 w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs leading-5 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+              className="min-h-28 w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-[13px] leading-5 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
             />
           </div>
 
@@ -185,7 +185,7 @@ export default function ProcessTaskModal({
             <button
               type="button"
               onClick={onClose}
-              className="h-8 rounded-lg px-3 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+              className="h-8 rounded-lg px-3 text-[14px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
             >
               취소
             </button>
@@ -193,7 +193,7 @@ export default function ProcessTaskModal({
             <button
               type="submit"
               disabled={!taskDraft.title.trim()}
-              className="h-8 rounded-lg bg-blue-600 px-4 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="h-8 rounded-lg bg-blue-600 px-4 text-[14px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               추가
             </button>

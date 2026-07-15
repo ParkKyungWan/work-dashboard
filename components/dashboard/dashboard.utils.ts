@@ -65,7 +65,7 @@ export function getSelectedStatusClassName(status: SelectableWorkStatus) {
     return "bg-emerald-100 text-emerald-700";
   }
 
-  return "bg-white text-slate-600 shadow-sm";
+  return "bg-white text-slate-600";
 }
 
 export function createEmptyTaskDraft(): ProcessTaskDraft {
