@@ -2,19 +2,32 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import type { DailyActionLogItem } from "./dashboard.types";
+import { createLocalDateFromKey } from "@/components/day-picker/day-picker.utils";
+
+import type {
+  DailyActionLogDraft,
+  DailyActionLogItem,
+} from "./dashboard.types";
 import { getCurrentTime } from "./dashboard.utils";
 
 type DailyActionLogProps = {
+  viewDate: string;
   actionLogs: DailyActionLogItem[];
-  onAddActionLog: (actionLog: Omit<DailyActionLogItem, "id">) => void;
-  onDeleteActionLog: (actionLogId: string) => void;
+  isLoading: boolean;
+  isSaving: boolean;
+  errorMessage: string | null;
+  onAddActionLog: (actionLog: DailyActionLogDraft) => Promise<boolean>;
+  onDeleteActionLog: (actionLogId: string) => Promise<void>;
 };
 
 export default function DailyActionLog({
+  viewDate,
   actionLogs,
+  isLoading,
+  isSaving,
+  errorMessage,
   onAddActionLog,
   onDeleteActionLog,
 }: DailyActionLogProps) {
@@ -22,8 +35,35 @@ export default function DailyActionLog({
   const [description, setDescription] = useState("");
   const [time, setTime] = useState(getCurrentTime);
   const [isTimeEditing, setIsTimeEditing] = useState(false);
+  const [isTimeManuallySet, setIsTimeManuallySet] = useState(false);
 
-  function submitActionLog(event: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (isTimeManuallySet) {
+      return;
+    }
+
+    let minuteInterval: number | null = null;
+    const millisecondsUntilNextMinute =
+      60_000 - (Date.now() % 60_000) + 50;
+
+    const minuteTimeout = window.setTimeout(() => {
+      setTime(getCurrentTime());
+
+      minuteInterval = window.setInterval(() => {
+        setTime(getCurrentTime());
+      }, 60_000);
+    }, millisecondsUntilNextMinute);
+
+    return () => {
+      window.clearTimeout(minuteTimeout);
+
+      if (minuteInterval !== null) {
+        window.clearInterval(minuteInterval);
+      }
+    };
+  }, [isTimeManuallySet]);
+
+  async function submitActionLog(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedTarget = target.trim();
@@ -33,16 +73,21 @@ export default function DailyActionLog({
       return;
     }
 
-    onAddActionLog({
+    const saved = await onAddActionLog({
       target: trimmedTarget,
       description: trimmedDescription,
       time,
     });
 
+    if (!saved) {
+      return;
+    }
+
     setTarget("");
     setDescription("");
     setTime(getCurrentTime());
     setIsTimeEditing(false);
+    setIsTimeManuallySet(false);
   }
 
   return (
@@ -77,7 +122,10 @@ export default function DailyActionLog({
                 type="time"
                 value={time}
                 autoFocus
-                onChange={(event) => setTime(event.target.value)}
+                onChange={(event) => {
+                  setTime(event.target.value);
+                  setIsTimeManuallySet(true);
+                }}
                 onBlur={() => setIsTimeEditing(false)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -105,12 +153,19 @@ export default function DailyActionLog({
 
           <button
             type="submit"
-            className="shrink-0 rounded-lg bg-slate-800 px-4 text-[13px] font-semibold transition hover:bg-slate-700 active:bg-slate-900 text-white"
+            disabled={isSaving}
+            className="shrink-0 rounded-lg bg-slate-800 px-4 text-[13px] font-semibold text-white transition hover:bg-slate-700 active:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            기록
+            {isSaving ? "저장 중" : "기록"}
           </button>
         </div>
       </form>
+
+      {errorMessage && (
+        <p className="-mt-3 mb-3 text-[12px] font-medium text-red-600">
+          {errorMessage}
+        </p>
+      )}
 
       <div className="min-h-0 flex-1">
         <div className="flex h-full min-w-0 flex-col">
@@ -121,7 +176,13 @@ export default function DailyActionLog({
             <span aria-hidden="true" />
           </div>
 
-          {actionLogs.length > 0 ? (
+          {isLoading ? (
+            <div className="flex min-h-0 flex-1 items-center justify-center">
+              <p className="text-[14px] font-medium text-slate-400">
+                조치 일지를 불러오는 중입니다.
+              </p>
+            </div>
+          ) : actionLogs.length > 0 ? (
             <div className="min-h-0 flex-1 overflow-y-auto py-1 scrollbar-soft">
               {actionLogs.map((actionLog) => (
                 <div
@@ -148,7 +209,7 @@ export default function DailyActionLog({
 
                   <button
                     type="button"
-                    onClick={() => onDeleteActionLog(actionLog.id)}
+                    onClick={() => void onDeleteActionLog(actionLog.id)}
                     aria-label="조치 기록 삭제"
                     className="mx-auto flex size-6 items-center justify-center rounded-md text-sm text-slate-300 opacity-0 transition group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-700 focus:opacity-100 focus:outline-none"
                   >
@@ -165,7 +226,9 @@ export default function DailyActionLog({
                 </p>
 
                 <p className="mt-1 text-[13px] text-slate-400">
-                  위 입력창에서 오늘의 조치를 기록하세요.
+                  {createLocalDateFromKey(viewDate).getMonth() + 1}월{" "}
+                  {createLocalDateFromKey(viewDate).getDate()}일의 조치를
+                  기록하세요.
                 </p>
               </div>
             </div>

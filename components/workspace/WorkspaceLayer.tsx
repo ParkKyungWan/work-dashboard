@@ -35,6 +35,7 @@ import {
   isDateIncludedInNotePeriod,
   isSameLocalDay,
 } from "./workspace.utils";
+import { useWorkspaceDate } from "./WorkspaceDateProvider";
 
 const DEFAULT_STICKY_NOTE_WIDTH = 320;
 const DEFAULT_STICKY_NOTE_HEIGHT = 360;
@@ -110,7 +111,7 @@ const getResponseMessage = async (
 export default function WorkspaceLayer({
   scope = "work-log",
 }: WorkspaceLayerProps) {
-  const [viewDate, setViewDate] = useState(() => toLocalDateKey(new Date()));
+  const { viewDate, setViewDate } = useWorkspaceDate();
 
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
