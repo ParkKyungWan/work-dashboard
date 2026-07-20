@@ -75,7 +75,7 @@ export default function ProcessTaskCard({
             getStatusClassName(task.status),
           ].join(" ")}
         >
-          {getStatusLabel(task.status)}
+          {getStatusLabel(task.status, task.completedDate)}
         </span>
 
         <span

@@ -22,10 +22,11 @@ export type ProcessTask = {
   title: string;
   memo: string;
   status: WorkStatus;
+  createdDate: string;
+  completedDate: string | null;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
-export type ProcessTaskDraft = {
-  title: string;
-  memo: string;
-  status: WorkStatus;
-};
+export type ProcessTaskDraft = Pick<ProcessTask, "title" | "memo" | "status">;

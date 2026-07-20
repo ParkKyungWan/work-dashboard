@@ -30,14 +30,28 @@ export function getCurrentTime() {
   }).format(new Date());
 }
 
-export function getStatusLabel(status: WorkStatus) {
+export function formatShortDate(dateKey: string) {
+  const [, month, day] = dateKey.split("-").map(Number);
+
+  return `${month}/${day}`;
+}
+
+export function getStatusLabel(
+  status: WorkStatus,
+  completedDate?: string | null,
+) {
   if (status === "ON_HOLD") {
     return "보류";
   }
 
-  return (
-    STATUS_OPTIONS.find((option) => option.value === status)?.label ?? "시행 전"
-  );
+  const label =
+    STATUS_OPTIONS.find((option) => option.value === status)?.label ?? "시행 전";
+
+  if (status === "COMPLETED" && completedDate) {
+    return `${label} · ${formatShortDate(completedDate)}`;
+  }
+
+  return label;
 }
 
 export function getStatusClassName(status: WorkStatus) {

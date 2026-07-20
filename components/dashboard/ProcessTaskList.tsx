@@ -14,14 +14,20 @@ import type {
 
 type ProcessTaskListProps = {
   tasks: ProcessTask[];
-  onAddTask: (taskDraft: ProcessTaskDraft) => void;
+  isLoading: boolean;
+  isSaving: boolean;
+  errorMessage: string | null;
+  onAddTask: (taskDraft: ProcessTaskDraft) => Promise<boolean>;
   onUpdateTaskMemo: (taskId: string, memo: string) => void;
-  onUpdateTaskStatus: (taskId: string, status: WorkStatus) => void;
-  onDeleteTask: (taskId: string) => void;
+  onUpdateTaskStatus: (taskId: string, status: WorkStatus) => Promise<void>;
+  onDeleteTask: (taskId: string) => Promise<void>;
 };
 
 export default function ProcessTaskList({
   tasks,
+  isLoading,
+  isSaving,
+  errorMessage,
   onAddTask,
   onUpdateTaskMemo,
   onUpdateTaskStatus,
@@ -45,17 +51,18 @@ export default function ProcessTaskList({
     );
   }
 
-  function deleteTask(taskId: string) {
-    onDeleteTask(taskId);
+  async function deleteTask(taskId: string) {
+    await onDeleteTask(taskId);
 
     setExpandedTaskId((currentTaskId) =>
       currentTaskId === taskId ? null : currentTaskId,
     );
   }
 
-  function addTask(taskDraft: ProcessTaskDraft) {
-    onAddTask(taskDraft);
-    setIsTaskModalOpen(false);
+  async function addTask(taskDraft: ProcessTaskDraft) {
+    if (await onAddTask(taskDraft)) {
+      setIsTaskModalOpen(false);
+    }
   }
 
   return (
@@ -79,7 +86,19 @@ export default function ProcessTaskList({
           </button>
         </header>
 
-        {tasks.length > 0 ? (
+        {errorMessage && (
+          <p className="mb-3 text-[12px] font-medium text-red-600">
+            {errorMessage}
+          </p>
+        )}
+
+        {isLoading ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <p className="text-[14px] font-medium text-slate-400">
+              진행 업무를 불러오는 중입니다.
+            </p>
+          </div>
+        ) : tasks.length > 0 ? (
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-soft">
             {tasks.map((task) => (
               <ProcessTaskCard
@@ -88,8 +107,10 @@ export default function ProcessTaskList({
                 isExpanded={expandedTaskId === task.id}
                 onToggle={() => toggleTask(task.id)}
                 onUpdateMemo={(memo) => onUpdateTaskMemo(task.id, memo)}
-                onUpdateStatus={(status) => onUpdateTaskStatus(task.id, status)}
-                onDelete={() => deleteTask(task.id)}
+                onUpdateStatus={(status) =>
+                  void onUpdateTaskStatus(task.id, status)
+                }
+                onDelete={() => void deleteTask(task.id)}
               />
             ))}
           </div>
@@ -114,6 +135,7 @@ export default function ProcessTaskList({
 
       <ProcessTaskModal
         isOpen={isTaskModalOpen}
+        isSaving={isSaving}
         onClose={() => setIsTaskModalOpen(false)}
         onSubmit={addTask}
       />
