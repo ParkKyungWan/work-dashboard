@@ -38,6 +38,7 @@ export function formatShortDate(dateKey: string) {
 
 export function getStatusLabel(
   status: WorkStatus,
+  createdDate?: string,
   completedDate?: string | null,
 ) {
   if (status === "ON_HOLD") {
@@ -47,8 +48,12 @@ export function getStatusLabel(
   const label =
     STATUS_OPTIONS.find((option) => option.value === status)?.label ?? "시행 전";
 
-  if (status === "COMPLETED" && completedDate) {
-    return `${label} · ${formatShortDate(completedDate)}`;
+  if (status === "IN_PROGRESS" && createdDate) {
+    return `${label} · ${formatShortDate(createdDate)} ~`;
+  }
+
+  if (status === "COMPLETED" && createdDate && completedDate) {
+    return `${label} · ${formatShortDate(createdDate)} ~ ${formatShortDate(completedDate)}`;
   }
 
   return label;
