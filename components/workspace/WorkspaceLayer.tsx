@@ -625,6 +625,13 @@ export default function WorkspaceLayer({
     setIsDatePickerOpen(false);
   };
 
+  const handleMoveDate = (amount: number) => {
+    const nextDate = createLocalDateFromKey(viewDate);
+
+    nextDate.setDate(nextDate.getDate() + amount);
+    setViewDate(toLocalDateKey(nextDate));
+  };
+
   const handleMoveToToday = () => {
     setViewDate(toLocalDateKey(new Date()));
     setIsDatePickerOpen(false);
@@ -1136,37 +1143,97 @@ export default function WorkspaceLayer({
           className="pointer-events-auto fixed right-5 top-5 z-[1100] flex items-start gap-2"
         >
           <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsDatePickerOpen((previous) => !previous);
-                setIsMenuOpen(false);
-              }}
-              disabled={isLoading}
-              className="flex h-10 items-center justify-center gap-2 rounded-full cursor-pointer bg-white px-3 text-[13px] font-semibold text-neutral-900 shadow-lg transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-              title="조회 날짜 선택"
-              aria-label="조회 날짜 선택"
-              aria-expanded={isDatePickerOpen}
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            <div className="group relative h-10 rounded-full bg-white shadow-lg">
+              {/* 기본 상태: 기존 디자인 그대로 */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDatePickerOpen((previous) => !previous);
+                  setIsMenuOpen(false);
+                }}
+                disabled={isLoading}
+                className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-3 text-[13px] font-semibold text-neutral-900 shadow-lg transition hover:bg-neutral-100 active:scale-95 group-hover:pointer-events-none group-hover:opacity-0 disabled:cursor-not-allowed disabled:opacity-50"
+                title="조회 날짜 선택"
+                aria-label="조회 날짜 선택"
+                aria-expanded={isDatePickerOpen}
               >
-                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="5" width="18" height="16" rx="2" />
+                  <path d="M16 3v4M8 3v4M3 10h18" />
+                </svg>
 
-                <path d="M16 3v4M8 3v4M3 10h18" />
-              </svg>
+                <span className="text-[13px] font-medium">
+                  {formatWorkspaceMenuDateLabel(viewDate)}
+                </span>
+              </button>
 
-              <span className="text-[13px] font-medium">
-                {formatWorkspaceMenuDateLabel(viewDate)}
-              </span>
-            </button>
+              {/* hover 상태: 같은 크기 안에서 어제 / 캘린더 / 내일 */}
+              <div className="pointer-events-none absolute inset-0 grid grid-cols-3 overflow-hidden rounded-full opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+                <button
+                  type="button"
+                  onClick={() => handleMoveDate(-1)}
+                  disabled={isLoading}
+                  className="flex cursor-pointer items-center justify-center bg-white text-neutral-900 transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="어제로 이동"
+                  aria-label="어제로 이동"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="block size-0 border-y-[4px] border-r-[6px] border-y-transparent border-r-current"
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDatePickerOpen((previous) => !previous);
+                    setIsMenuOpen(false);
+                  }}
+                  disabled={isLoading}
+                  className="flex cursor-pointer items-center justify-center bg-white text-neutral-900 transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="조회 날짜 선택"
+                  aria-label="조회 날짜 선택"
+                  aria-expanded={isDatePickerOpen}
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <path d="M16 3v4M8 3v4M3 10h18" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleMoveDate(1)}
+                  disabled={isLoading}
+                  className="flex cursor-pointer items-center justify-center bg-white text-neutral-900 transition hover:bg-neutral-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="내일로 이동"
+                  aria-label="내일로 이동"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="block size-0 border-y-[4px] border-l-[6px] border-y-transparent border-l-current"
+                  />
+                </button>
+              </div>
+            </div>
 
             {isDatePickerOpen && (
               <div className="absolute right-0 top-12 w-56 rounded-md card-shadow bg-white p-2 text-[13px] shadow-xl">
