@@ -78,14 +78,14 @@ export function getStatusClassName(status: WorkStatus) {
 
 export function getSelectedStatusClassName(status: SelectableWorkStatus) {
   if (status === "IN_PROGRESS") {
-    return "bg-white text-[#C26328]";
+    return "bg-white text-slate-800";
   }
 
   if (status === "COMPLETED") {
     return "bg-gray-200 text-slate-600";
   }
 
-  return "bg-white text-slate-600";
+  return "bg-gray-200 text-slate-600";
 }
 
 export function createEmptyTaskDraft(): ProcessTaskDraft {

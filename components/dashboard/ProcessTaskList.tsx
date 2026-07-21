@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import ProcessTaskCard from "./ProcessTaskCard";
 import ProcessTaskModal from "./ProcessTaskModal";
+import ConfirmDialog from "../common/ConfirmDialog";
 import type {
   ProcessTask,
   ProcessTaskDraft,
@@ -39,6 +40,11 @@ export default function ProcessTaskList({
   onDeleteTask,
 }: ProcessTaskListProps) {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [pendingStatuses, setPendingStatuses] = useState<
+    Record<string, WorkStatus>
+  >({});
+
+  const [deleteTarget, setDeleteTarget] = useState<ProcessTask | null>(null);
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
@@ -62,13 +68,43 @@ export default function ProcessTaskList({
     return `${tasks.length}개의 업무`;
   }, [tasks.length]);
 
+  function commitPendingStatus(taskId: string) {
+    const task = tasks.find((item) => item.id === taskId);
+    const pendingStatus = pendingStatuses[taskId];
+
+    setPendingStatuses((currentStatuses) => {
+      const nextStatuses = { ...currentStatuses };
+      delete nextStatuses[taskId];
+      return nextStatuses;
+    });
+
+    if (task && pendingStatus && pendingStatus !== task.status) {
+      void onUpdateTaskStatus(taskId, pendingStatus);
+    }
+  }
+
   function toggleTask(taskId: string) {
-    setExpandedTaskId((currentTaskId) =>
-      currentTaskId === taskId ? null : taskId,
-    );
+    if (expandedTaskId) {
+      commitPendingStatus(expandedTaskId);
+    }
+
+    setExpandedTaskId(expandedTaskId === taskId ? null : taskId);
+  }
+
+  function updatePendingStatus(taskId: string, status: WorkStatus) {
+    setPendingStatuses((currentStatuses) => ({
+      ...currentStatuses,
+      [taskId]: status,
+    }));
   }
 
   async function deleteTask(taskId: string) {
+    setPendingStatuses((currentStatuses) => {
+      const nextStatuses = { ...currentStatuses };
+      delete nextStatuses[taskId];
+      return nextStatuses;
+    });
+
     await onDeleteTask(taskId);
 
     setExpandedTaskId((currentTaskId) =>
@@ -121,13 +157,14 @@ export default function ProcessTaskList({
               <ProcessTaskCard
                 key={task.id}
                 task={task}
+                pendingStatus={pendingStatuses[task.id] ?? task.status}
                 isExpanded={expandedTaskId === task.id}
                 onToggle={() => toggleTask(task.id)}
                 onUpdateMemo={(memo) => onUpdateTaskMemo(task.id, memo)}
-                onUpdateStatus={(status) =>
-                  void onUpdateTaskStatus(task.id, status)
+                onPendingStatusChange={(status) =>
+                  updatePendingStatus(task.id, status)
                 }
-                onDelete={() => void deleteTask(task.id)}
+                onDelete={() => setDeleteTarget(task)}
               />
             ))}
           </div>
@@ -155,6 +192,26 @@ export default function ProcessTaskList({
         isSaving={isSaving}
         onClose={() => setIsTaskModalOpen(false)}
         onSubmit={addTask}
+      />
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="업무를 삭제할까요?"
+        description={
+          deleteTarget
+            ? `"${deleteTarget.title}" 업무는 삭제 후 복구할 수 없습니다.`
+            : undefined
+        }
+        confirmText="삭제"
+        cancelText="취소"
+        danger
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+
+          const taskId = deleteTarget.id;
+          setDeleteTarget(null);
+          void deleteTask(taskId);
+        }}
       />
     </>
   );

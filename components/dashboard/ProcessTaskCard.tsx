@@ -12,22 +12,24 @@ import {
 
 type ProcessTaskCardProps = {
   task: ProcessTask;
+  pendingStatus: WorkStatus;
   isExpanded: boolean;
   onToggle: () => void;
   onUpdateMemo: (memo: string) => void;
-  onUpdateStatus: (status: WorkStatus) => void;
+  onPendingStatusChange: (status: WorkStatus) => void;
   onDelete: () => void;
 };
 
 export default function ProcessTaskCard({
   task,
+  pendingStatus,
   isExpanded,
   onToggle,
   onUpdateMemo,
-  onUpdateStatus,
+  onPendingStatusChange,
   onDelete,
 }: ProcessTaskCardProps) {
-  const isOnHold = task.status === "ON_HOLD";
+  const isOnHold = pendingStatus === "ON_HOLD";
 
   return (
     <article
@@ -114,13 +116,13 @@ export default function ProcessTaskCard({
 
               <div className="grid grid-cols-3 rounded-lg bg-slate-100/80 p-0.5">
                 {STATUS_OPTIONS.map((option) => {
-                  const isSelected = task.status === option.value;
+                  const isSelected = pendingStatus === option.value;
 
                   return (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => onUpdateStatus(option.value)}
+                      onClick={() => onPendingStatusChange(option.value)}
                       className={[
                         "h-7 rounded-md px-1 text-[10px] font-semibold transition",
                         isSelected
@@ -138,7 +140,7 @@ export default function ProcessTaskCard({
                 <button
                   type="button"
                   onClick={() =>
-                    onUpdateStatus(isOnHold ? "BEFORE" : "ON_HOLD")
+                    onPendingStatusChange(isOnHold ? "BEFORE" : "ON_HOLD")
                   }
                   className={[
                     "flex h-8 items-center justify-center gap-1.5 rounded-lg px-2",
@@ -185,6 +187,26 @@ export default function ProcessTaskCard({
                   업무 삭제
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggle();
+                }}
+                className="
+                  mt-3 w-full rounded-lg
+                  border border-slate-300/80
+                  px-4 py-2 text-xs font-semibold text-slate-700
+                  shadow-[0_2px_6px_rgba(15,23,42,0.07)]
+                  transition-[border-color,box-shadow,transform]
+                  hover:border-slate-400/80
+                  hover:shadow-[0_4px_10px_rgba(15,23,42,0.10)]
+                  active:translate-y-px
+                  active:shadow-[inset_0_1px_3px_rgba(15,23,42,0.10)]
+                "
+              >
+                적용 후 닫기
+              </button>
             </aside>
           </div>
         </div>
