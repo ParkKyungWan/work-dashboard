@@ -939,6 +939,52 @@ export default function WorkspaceLayer({
     }
   };
 
+  const handleSizeChange = async (
+    id: string,
+    width: number,
+    height: number,
+    x: number,
+    y: number,
+  ) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const fittedPosition = fitExistingNotePositionToViewport(
+      x,
+      y,
+      window.innerWidth,
+      window.innerHeight,
+      width,
+      height,
+    );
+
+    setNotes((previousNotes) =>
+      previousNotes.map((note) =>
+        note.id === id
+          ? {
+              ...note,
+              width,
+              height,
+              x: fittedPosition.x,
+              y: fittedPosition.y,
+            }
+          : note,
+      ),
+    );
+
+    const updatedNote = await patchNote(id, {
+      width,
+      height,
+      x: fittedPosition.x,
+      y: fittedPosition.y,
+    });
+
+    if (updatedNote) {
+      updateLocalNote(updatedNote);
+    }
+  };
+
   const handleExpiresAtChange = async (id: string, expiresAt: string) => {
     const updatedNote = await patchNote(id, {
       expiresAt,
@@ -1150,6 +1196,7 @@ export default function WorkspaceLayer({
             onPositionChange={handlePositionChange}
             onWidthChange={handleWidthChange}
             onHeightChange={handleHeightChange}
+            onSizeChange={handleSizeChange}
             onExpiresAtChange={handleExpiresAtChange}
             onContentChange={handleContentChange}
           />
