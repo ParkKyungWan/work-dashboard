@@ -9,6 +9,7 @@ import type {
   ExternalSchedule,
   Holiday,
   HolidayApiResponse,
+  InternalSchedule,
   LeaveDay,
 } from "./day-picker.types";
 import {
@@ -39,11 +40,16 @@ export default function AppDayPicker({
     Record<number, ExternalSchedule[]>
   >({});
 
+  const [internalSchedulesByYear, setInternalSchedulesByYear] = useState<
+    Record<number, InternalSchedule[]>
+  >({});
+
   const [isHolidayLoading, setIsHolidayLoading] = useState(false);
 
   const requestedHolidayYearsRef = useRef<Set<number>>(new Set());
   const requestedLeaveYearsRef = useRef<Set<number>>(new Set());
   const requestedExternalScheduleYearsRef = useRef<Set<number>>(new Set());
+  const requestedInternalScheduleYearsRef = useRef<Set<number>>(new Set());
 
   const loadHolidays = useCallback(async (year: number) => {
     if (requestedHolidayYearsRef.current.has(year)) {
@@ -160,6 +166,40 @@ export default function AppDayPicker({
     }
   }, []);
 
+  const loadInternalSchedules = useCallback(async (year: number) => {
+    if (requestedInternalScheduleYearsRef.current.has(year)) return;
+
+    requestedInternalScheduleYearsRef.current.add(year);
+
+    try {
+      const response = await fetch("/api/day-picker/internal-schedules", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+
+        throw new Error(
+          errorData?.message ??
+            `${year}년 내부 일정 정보를 불러오지 못했습니다.`,
+        );
+      }
+
+      const data = (await response.json()) as InternalSchedule[];
+      const yearPrefix = `${year}-`;
+
+      setInternalSchedulesByYear((previous) => ({
+        ...previous,
+        [year]: data.filter((schedule) => schedule.date.startsWith(yearPrefix)),
+      }));
+    } catch (error) {
+      requestedInternalScheduleYearsRef.current.delete(year);
+      console.error(`${year}년 내부 일정 조회 실패:`, error);
+    }
+  }, []);
+
   useEffect(() => {
     setCalendarMonth(selectedDate);
   }, [selectedDate]);
@@ -170,7 +210,14 @@ export default function AppDayPicker({
     void loadHolidays(year);
     void loadLeaveDays(year);
     void loadExternalSchedules(year);
-  }, [calendarMonth, loadExternalSchedules, loadHolidays, loadLeaveDays]);
+    void loadInternalSchedules(year);
+  }, [
+    calendarMonth,
+    loadExternalSchedules,
+    loadHolidays,
+    loadInternalSchedules,
+    loadLeaveDays,
+  ]);
 
   const calendarYear = calendarMonth.getFullYear();
 
@@ -178,6 +225,8 @@ export default function AppDayPicker({
   const currentYearLeaveDays = leaveDaysByYear[calendarYear] ?? [];
   const currentYearExternalSchedules =
     externalSchedulesByYear[calendarYear] ?? [];
+  const currentYearInternalSchedules =
+    internalSchedulesByYear[calendarYear] ?? [];
 
   const holidayDates = useMemo(
     () =>
@@ -227,6 +276,26 @@ export default function AppDayPicker({
     [currentYearExternalSchedules],
   );
 
+  const selectedDateKey = toLocalDateKey(selectedDate);
+
+  const internalScheduleDates = useMemo(() => {
+    const externalDateKeys = new Set(
+      currentYearExternalSchedules.map((schedule) => schedule.date),
+    );
+
+    return currentYearInternalSchedules
+      .filter(
+        (schedule) =>
+          !externalDateKeys.has(schedule.date) &&
+          schedule.date !== selectedDateKey,
+      )
+      .map((schedule) => createLocalDateFromKey(schedule.date));
+  }, [
+    currentYearExternalSchedules,
+    currentYearInternalSchedules,
+    selectedDateKey,
+  ]);
+
   return (
     <div className="relative">
       <DayPicker
@@ -249,6 +318,8 @@ export default function AppDayPicker({
           holiday: holidayDates,
 
           externalSchedule: externalScheduleDates,
+
+          internalSchedule: internalScheduleDates,
 
           annualLeave: annualLeaveDates,
 
@@ -276,6 +347,9 @@ export default function AppDayPicker({
 
           externalSchedule:
             "[&>button]:!bg-emerald-50 [&>button]:font-semibold [&>button]:!text-emerald-700 [&>button]:hover:!bg-emerald-200",
+
+          internalSchedule:
+            "[&>button]:!bg-sky-50 [&>button]:font-semibold [&>button]:!text-sky-700 [&>button]:hover:!bg-sky-200",
 
           annualLeave:
             "[&>button]:!bg-amber-100 [&>button]:font-semibold [&>button]:!text-orange-700 [&>button]:hover:!bg-orange-200",

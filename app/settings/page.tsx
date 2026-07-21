@@ -25,6 +25,13 @@ const SETTING_ITEMS: SettingItem[] = [
     badge: "일정",
     badgeClassName: "bg-emerald-100 text-emerald-700",
   },
+  {
+    href: "/settings/internal-schedules",
+    title: "내부 일정",
+    description: "사내 일정이나 내부 업무 일정을 등록하고 관리합니다.",
+    badge: "내부",
+    badgeClassName: "bg-sky-100 text-sky-700",
+  },
 ];
 
 export default function SettingsPage() {

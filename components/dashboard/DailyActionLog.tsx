@@ -166,8 +166,8 @@ export default function DailyActionLog({
         </p>
       )}
 
-      <div className="min-h-0 flex-1">
-        <div className="flex h-full min-w-0 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 min-w-0 flex-col">
           <div className="grid shrink-0 grid-cols-[52px_88px_minmax(0,1fr)_28px] items-center rounded-lg bg-slate-100/70 px-2 py-2 text-[14px] font-semibold text-slate-500">
             <span>시간</span>
             <span>대상</span>

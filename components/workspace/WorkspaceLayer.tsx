@@ -23,6 +23,7 @@ import {
 
 import type {
   ExternalSchedule,
+  InternalSchedule,
   LeaveDay,
   WorkspaceLayerProps,
   WorkspaceScheduleItem,
@@ -118,6 +119,9 @@ export default function WorkspaceLayer({
   const [leaveDays, setLeaveDays] = useState<LeaveDay[]>([]);
   const [externalSchedules, setExternalSchedules] = useState<
     ExternalSchedule[]
+  >([]);
+  const [internalSchedules, setInternalSchedules] = useState<
+    InternalSchedule[]
   >([]);
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -222,6 +226,23 @@ export default function WorkspaceLayer({
         });
       });
 
+    const externalScheduleExists = externalSchedules.some(
+      (schedule) => schedule.date === viewDate,
+    );
+
+    if (!externalScheduleExists) {
+      internalSchedules
+        .filter((schedule) => schedule.date === viewDate)
+        .forEach((schedule) => {
+          items.push({
+            id: `internal-${schedule.id}`,
+            type: "INTERNAL_SCHEDULE",
+            label: schedule.title.trim() || "내부 일정",
+            className: "text-sky-700",
+          });
+        });
+    }
+
     if (selectedDateInfo.isWeekend) {
       items.push({
         id: `weekend-${viewDate}`,
@@ -232,7 +253,13 @@ export default function WorkspaceLayer({
     }
 
     return items;
-  }, [externalSchedules, leaveDays, selectedDateInfo, viewDate]);
+  }, [
+    externalSchedules,
+    internalSchedules,
+    leaveDays,
+    selectedDateInfo,
+    viewDate,
+  ]);
 
   const normalScheduleItems = useMemo(() => {
     return selectedDateScheduleItems.filter((item) => item.type !== "WEEKEND");
@@ -370,20 +397,28 @@ export default function WorkspaceLayer({
     setIsScheduleLoading(true);
 
     try {
-      const [holidayResponse, leaveResponse, externalScheduleResponse] =
-        await Promise.all([
-          fetch(`/api/day-picker/holidays?year=${selectedYear}`, {
-            cache: "no-store",
-          }),
+      const [
+        holidayResponse,
+        leaveResponse,
+        externalScheduleResponse,
+        internalScheduleResponse,
+      ] = await Promise.all([
+        fetch(`/api/day-picker/holidays?year=${selectedYear}`, {
+          cache: "no-store",
+        }),
 
-          fetch(`/api/day-picker/leave?year=${selectedYear}`, {
-            cache: "no-store",
-          }),
+        fetch(`/api/day-picker/leave?year=${selectedYear}`, {
+          cache: "no-store",
+        }),
 
-          fetch(`/api/day-picker/external-schedules?year=${selectedYear}`, {
-            cache: "no-store",
-          }),
-        ]);
+        fetch(`/api/day-picker/external-schedules?year=${selectedYear}`, {
+          cache: "no-store",
+        }),
+
+        fetch(`/api/day-picker/internal-schedules?year=${selectedYear}`, {
+          cache: "no-store",
+        }),
+      ]);
 
       if (!holidayResponse.ok) {
         const message = await getResponseMessage(
@@ -412,12 +447,31 @@ export default function WorkspaceLayer({
         throw new Error(message);
       }
 
-      const [holidayData, loadedLeaveDays, loadedExternalSchedules] =
-        (await Promise.all([
-          holidayResponse.json(),
-          leaveResponse.json(),
-          externalScheduleResponse.json(),
-        ])) as [HolidayApiResponse, LeaveDay[], ExternalSchedule[]];
+      if (!internalScheduleResponse.ok) {
+        const message = await getResponseMessage(
+          internalScheduleResponse,
+          "내부 일정 정보를 불러오지 못했습니다.",
+        );
+
+        throw new Error(message);
+      }
+
+      const [
+        holidayData,
+        loadedLeaveDays,
+        loadedExternalSchedules,
+        loadedInternalSchedules,
+      ] = (await Promise.all([
+        holidayResponse.json(),
+        leaveResponse.json(),
+        externalScheduleResponse.json(),
+        internalScheduleResponse.json(),
+      ])) as [
+        HolidayApiResponse,
+        LeaveDay[],
+        ExternalSchedule[],
+        InternalSchedule[],
+      ];
 
       setHolidays(
         Array.isArray(holidayData.holidays) ? holidayData.holidays : [],
@@ -428,12 +482,16 @@ export default function WorkspaceLayer({
       setExternalSchedules(
         Array.isArray(loadedExternalSchedules) ? loadedExternalSchedules : [],
       );
+      setInternalSchedules(
+        Array.isArray(loadedInternalSchedules) ? loadedInternalSchedules : [],
+      );
     } catch (error) {
       console.error("작업공간 일정 조회 실패:", error);
 
       setHolidays([]);
       setLeaveDays([]);
       setExternalSchedules([]);
+      setInternalSchedules([]);
     } finally {
       setIsScheduleLoading(false);
     }

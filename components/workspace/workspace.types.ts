@@ -26,9 +26,19 @@ export type ExternalSchedule = {
   updatedAt: string;
 };
 
+export type InternalSchedule = {
+  id: string;
+  date: string;
+  title: string;
+  memo: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type WorkspaceScheduleType =
   | LeaveType
   | "EXTERNAL_SCHEDULE"
+  | "INTERNAL_SCHEDULE"
   | "WEEKEND"
   | "HOLIDAY"
   | "PAYDAY";
