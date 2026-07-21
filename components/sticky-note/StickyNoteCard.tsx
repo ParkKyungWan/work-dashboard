@@ -4,7 +4,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import StickyNoteBody from "./StickyNoteBody";
+import StickyNoteBody, {
+  type StickyNoteBodyHandle,
+} from "./StickyNoteBody";
 import StickyNoteCollapseBar from "./StickyNoteCollapseBar";
 import StickyNoteDateRange from "./StickyNoteDateRange";
 import StickyNoteHeader from "./StickyNoteHeader";
@@ -52,6 +54,7 @@ export default function StickyNoteCard({
   const [isResizing, setIsResizing] = useState(false);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<StickyNoteBodyHandle | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
   const heightRef = useRef(note.height || MIN_HEIGHT);
@@ -567,6 +570,7 @@ export default function StickyNoteCard({
               }}
             >
               <StickyNoteBody
+                ref={bodyRef}
                 content={draftContent}
                 onContentChange={setDraftContent}
               />
