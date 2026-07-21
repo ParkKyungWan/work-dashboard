@@ -278,9 +278,7 @@ export default function Dashboard() {
 
       const updatedTask = (await response.json()) as ProcessTask;
       setTasks((currentTasks) =>
-        currentTasks.map((task) =>
-          task.id === taskId ? updatedTask : task,
-        ),
+        currentTasks.map((task) => (task.id === taskId ? updatedTask : task)),
       );
     } catch (error) {
       console.error("업무 상태 변경 실패:", error);
@@ -310,7 +308,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-[1800px] grid-cols-1 gap-3 md:grid-cols-[minmax(320px,1fr)_minmax(0,2fr)]">
+    <div className="mx-auto grid w-full max-w-[1800px] grid-cols-1 gap-3 items-start md:grid-cols-[minmax(320px,1fr)_minmax(0,2fr)]">
       <DailyActionLog
         viewDate={viewDate}
         actionLogs={actionLogs}

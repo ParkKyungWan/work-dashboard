@@ -43,8 +43,7 @@ export default function DailyActionLog({
     }
 
     let minuteInterval: number | null = null;
-    const millisecondsUntilNextMinute =
-      60_000 - (Date.now() % 60_000) + 50;
+    const millisecondsUntilNextMinute = 60_000 - (Date.now() % 60_000) + 50;
 
     const minuteTimeout = window.setTimeout(() => {
       setTime(getCurrentTime());
