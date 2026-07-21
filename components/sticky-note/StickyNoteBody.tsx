@@ -11,7 +11,11 @@ import {
   type Ref,
 } from "react";
 
-export type StickyNoteTextFormat = "bold" | "italic" | "underline";
+export type StickyNoteTextFormat =
+  | "bold"
+  | "italic"
+  | "underline"
+  | "strikeThrough";
 
 export type StickyNoteBodyHandle = {
   applyFormat: (format: StickyNoteTextFormat) => void;
@@ -23,7 +27,18 @@ type StickyNoteBodyProps = {
   onContentChange: (content: string) => void;
 };
 
-const ALLOWED_TAGS = new Set(["B", "BR", "DIV", "EM", "I", "P", "STRONG", "U"]);
+const ALLOWED_TAGS = new Set([
+  "B",
+  "BR",
+  "DIV",
+  "EM",
+  "I",
+  "P",
+  "S",
+  "STRIKE",
+  "STRONG",
+  "U",
+]);
 
 const REMOVED_TAGS = new Set(["SCRIPT", "STYLE"]);
 
@@ -113,7 +128,11 @@ export default function StickyNoteBody({
     if (!event.ctrlKey && !event.metaKey) {
       return;
     }
-
+    if (event.shiftKey && event.key.toLowerCase() === "x") {
+      event.preventDefault();
+      applyFormat("strikeThrough");
+      return;
+    }
     const formatByKey: Partial<Record<string, StickyNoteTextFormat>> = {
       b: "bold",
       i: "italic",

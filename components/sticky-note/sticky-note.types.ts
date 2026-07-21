@@ -67,4 +67,11 @@ export type StickyNoteCardProps = {
   onHeightChange: (id: string, height: number) => void;
   onExpiresAtChange: (id: string, expiresAt: string) => void;
   onContentChange: (id: string, content: string) => void;
+  onSizeChange: (
+    id: string,
+    width: number,
+    height: number,
+    x: number,
+    y: number,
+  ) => void;
 };
