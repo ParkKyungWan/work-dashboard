@@ -32,6 +32,7 @@
   color-scheme: light;
 }
 
+:root[data-theme="dark"],
 html.dark {
   --background: #111315;
   --foreground: #e5e7eb;
@@ -199,6 +200,9 @@ body {
 
   min-height: 100vh;
   background: transparent;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 }
 
 button,

@@ -6,7 +6,9 @@ import "./globals.css";
 const themeScript = `
   try {
     var savedTheme = localStorage.getItem("work-dashboard-theme");
-    if (savedTheme === "dark") document.documentElement.classList.add("dark");
+    var isDark = savedTheme === "dark";
+    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    document.documentElement.classList.toggle("dark", isDark);
   } catch (_) {}
 `;
 
@@ -34,6 +36,8 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="light"
+      suppressHydrationWarning
       spellCheck={false}
     >
       <head>

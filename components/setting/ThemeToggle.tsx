@@ -4,27 +4,36 @@ import { useSyncExternalStore } from "react";
 
 const THEME_STORAGE_KEY = "work-dashboard-theme";
 
+function getIsDark() {
+  return document.documentElement.dataset.theme === "dark";
+}
+
 export default function ThemeToggle() {
   const isDark = useSyncExternalStore(
     (onStoreChange) => {
       const observer = new MutationObserver(onStoreChange);
 
-      observer.observe(document.documentElement, {
+      const root = document.documentElement;
+
+      observer.observe(root, {
         attributes: true,
-        attributeFilter: ["class"],
+        attributeFilter: ["data-theme"],
       });
 
-      return () => observer.disconnect();
+      return () => {
+        observer.disconnect();
+      };
     },
-    () => document.documentElement.classList.contains("dark"),
+    getIsDark,
     () => false,
   );
 
   function toggleTheme() {
-    // React 상태가 아니라 실제 HTML 상태를 기준으로 계산
-    const nextIsDark = !document.documentElement.classList.contains("dark");
+    const root = document.documentElement;
+    const nextIsDark = !getIsDark();
 
-    document.documentElement.classList.toggle("dark", nextIsDark);
+    root.dataset.theme = nextIsDark ? "dark" : "light";
+    root.classList.toggle("dark", nextIsDark);
     localStorage.setItem(THEME_STORAGE_KEY, nextIsDark ? "dark" : "light");
   }
 
