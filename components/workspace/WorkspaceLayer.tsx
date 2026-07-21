@@ -222,6 +222,7 @@ export default function WorkspaceLayer({
           id: `external-${schedule.id}`,
           type: "EXTERNAL_SCHEDULE",
           label: schedule.title.trim() || "외부 일정",
+          title: schedule.memo.trim() || undefined,
           className: "text-emerald-700",
         });
       });
@@ -238,6 +239,7 @@ export default function WorkspaceLayer({
             id: `internal-${schedule.id}`,
             type: "INTERNAL_SCHEDULE",
             label: schedule.title.trim() || "내부 일정",
+            title: schedule.memo.trim() || undefined,
             className: "text-sky-700",
           });
         });
@@ -1122,7 +1124,10 @@ export default function WorkspaceLayer({
               {normalScheduleItems.map((item) => (
                 <span
                   key={item.id}
-                  className={`shrink-0 whitespace-nowrap text-[18px] font-semibold ${item.className}`}
+                  title={item.title}
+                  className={`shrink-0 whitespace-nowrap text-[18px] font-semibold ${
+                    item.title ? "pointer-events-auto cursor-help" : ""
+                  } ${item.className}`}
                 >
                   {item.label}
                 </span>
