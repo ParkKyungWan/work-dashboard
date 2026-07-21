@@ -4,9 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import StickyNoteBody, {
-  type StickyNoteBodyHandle,
-} from "./StickyNoteBody";
+import StickyNoteBody, { type StickyNoteBodyHandle } from "./StickyNoteBody";
 import StickyNoteCollapseBar from "./StickyNoteCollapseBar";
 import StickyNoteDateRange from "./StickyNoteDateRange";
 import StickyNoteHeader from "./StickyNoteHeader";
@@ -44,6 +42,7 @@ export default function StickyNoteCard({
   onPositionChange,
   onWidthChange,
   onHeightChange,
+  onSizeChange,
   onExpiresAtChange,
   onContentChange,
 }: StickyNoteCardProps) {
@@ -56,6 +55,7 @@ export default function StickyNoteCard({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [isWidthResizing, setIsWidthResizing] = useState(false);
+  const [isDiagonalResizing, setIsDiagonalResizing] = useState(false);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<StickyNoteBodyHandle | null>(null);
@@ -133,6 +133,15 @@ export default function StickyNoteCard({
     mouseX: number;
     startWidth: number;
     startX: number;
+  } | null>(null);
+
+  const diagonalResizeStartRef = useRef<{
+    mouseX: number;
+    mouseY: number;
+    startWidth: number;
+    startHeight: number;
+    startX: number;
+    startY: number;
   } | null>(null);
 
   const postItColor = useMemo(() => createPostItColor(note), [note]);
@@ -323,7 +332,13 @@ export default function StickyNoteCard({
   };
 
   const handleMouseLeave = () => {
-    if (note.pinned || isDragging || isResizing || isWidthResizing) {
+    if (
+      note.pinned ||
+      isDragging ||
+      isResizing ||
+      isWidthResizing ||
+      isDiagonalResizing
+    ) {
       return;
     }
 
@@ -423,9 +438,7 @@ export default function StickyNoteCard({
     setIsResizing(true);
   };
 
-  const handleWidthResizeStart = (
-    event: React.MouseEvent<HTMLDivElement>,
-  ) => {
+  const handleWidthResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
     if (viewState === "DOCKED" || viewState === "PREVIEW") {
       return;
     }
@@ -440,6 +453,28 @@ export default function StickyNoteCard({
     };
 
     setIsWidthResizing(true);
+  };
+
+  const handleDiagonalResizeStart = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    if (viewState === "DOCKED" || viewState === "PREVIEW") {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    diagonalResizeStartRef.current = {
+      mouseX: event.clientX,
+      mouseY: event.clientY,
+      startWidth: widthRef.current,
+      startHeight: heightRef.current,
+      startX: openPositionRef.current.x,
+      startY: openPositionRef.current.y,
+    };
+
+    setIsDiagonalResizing(true);
   };
 
   useEffect(() => {
@@ -574,7 +609,7 @@ export default function StickyNoteCard({
         return;
       }
 
-      const diff = widthResizeStartRef.current.mouseX - event.clientX;
+      const diff = event.clientX - widthResizeStartRef.current.mouseX;
 
       const nextWidth = Math.round(
         Math.min(
@@ -583,9 +618,7 @@ export default function StickyNoteCard({
         ),
       );
 
-      const rawX =
-        widthResizeStartRef.current.startX -
-        (nextWidth - widthResizeStartRef.current.startWidth);
+      const rawX = widthResizeStartRef.current.startX;
 
       const nextPosition = clampStickyNotePosition(
         Math.round(rawX),
@@ -645,13 +678,108 @@ export default function StickyNoteCard({
     };
   }, [isWidthResizing, note.id, onWidthChange]);
 
+  useEffect(() => {
+    if (!isDiagonalResizing) {
+      return;
+    }
+
+    const handleMove = (event: MouseEvent) => {
+      if (!diagonalResizeStartRef.current) {
+        return;
+      }
+
+      const diffX = event.clientX - diagonalResizeStartRef.current.mouseX;
+      const diffY = event.clientY - diagonalResizeStartRef.current.mouseY;
+
+      const nextWidth = Math.round(
+        Math.min(
+          Math.max(
+            diagonalResizeStartRef.current.startWidth + diffX,
+            MIN_WIDTH,
+          ),
+          MAX_WIDTH,
+        ),
+      );
+
+      const nextHeight = Math.round(
+        Math.min(
+          Math.max(
+            diagonalResizeStartRef.current.startHeight + diffY,
+            MIN_HEIGHT,
+          ),
+          MAX_HEIGHT,
+        ),
+      );
+
+      const nextPosition = clampStickyNotePosition(
+        diagonalResizeStartRef.current.startX,
+        diagonalResizeStartRef.current.startY,
+        nextWidth,
+        nextHeight,
+        window.innerWidth,
+        window.innerHeight,
+      );
+
+      widthRef.current = nextWidth;
+      heightRef.current = nextHeight;
+      openPositionRef.current = nextPosition;
+      visualPositionRef.current = nextPosition;
+
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      animationFrameRef.current = window.requestAnimationFrame(() => {
+        applyWidthToDom(nextWidth);
+        applyHeightToDom(nextHeight);
+        applyPositionToDom(nextPosition.x, nextPosition.y);
+      });
+    };
+
+    const handleUp = () => {
+      setIsDiagonalResizing(false);
+      diagonalResizeStartRef.current = null;
+
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+
+      const finalPosition = openPositionRef.current;
+
+      applyWidthToDom(widthRef.current);
+      applyHeightToDom(heightRef.current);
+      applyPositionToDom(finalPosition.x, finalPosition.y);
+
+      onSizeChange(
+        note.id,
+        widthRef.current,
+        heightRef.current,
+        finalPosition.x,
+        finalPosition.y,
+      );
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isDiagonalResizing, note.id, onSizeChange]);
+
   const initialPosition = visualPositionRef.current;
 
   return (
     <div
       ref={cardRef}
       className={
-        isDragging || isResizing || isWidthResizing
+        isDragging || isResizing || isWidthResizing || isDiagonalResizing
           ? "fixed left-0 top-0 z-[1000] select-none will-change-transform"
           : "fixed left-0 top-0 z-[1000] transition-transform duration-200 ease-out will-change-transform"
       }
@@ -668,12 +796,32 @@ export default function StickyNoteCard({
         <div
           data-resize-handle="true"
           onMouseDown={handleWidthResizeStart}
-          className="group absolute -left-1 top-8 bottom-2 z-10 w-2 cursor-ew-resize"
+          className="group absolute -right-1 top-8 bottom-2 z-10 w-2 cursor-ew-resize"
           title="좌우 크기 조절"
           aria-label="좌우 크기 조절"
         >
           <span className="absolute bottom-2 left-1/2 top-2 w-px -translate-x-1/2 rounded-full bg-neutral-500/0 transition-colors group-hover:bg-neutral-500/45" />
         </div>
+      )}
+
+      {isOpen && (
+        <div
+          data-resize-handle="true"
+          onMouseDown={handleResizeStart}
+          className="absolute -bottom-1 left-2 right-2 z-10 h-2 cursor-ns-resize"
+          title="위아래 크기 조절"
+          aria-label="위아래 크기 조절"
+        />
+      )}
+
+      {isOpen && (
+        <div
+          data-resize-handle="true"
+          onMouseDown={handleDiagonalResizeStart}
+          className="absolute -bottom-1 -right-1 z-20 size-3 cursor-nwse-resize"
+          title="대각선 크기 조절"
+          aria-label="대각선 크기 조절"
+        />
       )}
 
       <div
@@ -737,13 +885,6 @@ export default function StickyNoteCard({
                 />
               </div>
             )}
-
-            <div
-              data-resize-handle="true"
-              onMouseDown={handleResizeStart}
-              className="h-2 shrink-0 cursor-ns-resize border-t border-neutral-300 bg-neutral-100 hover:bg-neutral-200"
-              title="위아래 크기 조절"
-            />
           </>
         )}
       </div>
