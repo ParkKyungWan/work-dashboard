@@ -19,6 +19,34 @@ import {
   toLocalDateKey,
 } from "./day-picker.utils";
 
+function MonthNavigationIcon({
+  className,
+  size = 16,
+  disabled,
+  orientation,
+}: {
+  className?: string;
+  size?: number;
+  disabled?: boolean;
+  orientation?: "up" | "down" | "left" | "right";
+}) {
+  const isPrevious = orientation === "left" || orientation === "up";
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      className={className}
+      fill="currentColor"
+      opacity={disabled ? 0.35 : 1}
+    >
+      <path d={isPrevious ? "M15 5 7 12l8 7Z" : "M9 5l8 7-8 7Z"} />
+    </svg>
+  );
+}
+
 export default function AppDayPicker({
   value,
   onChange,
@@ -299,6 +327,7 @@ export default function AppDayPicker({
   return (
     <div className="relative">
       <DayPicker
+        components={{ Chevron: MonthNavigationIcon }}
         mode="single"
         locale={ko}
         selected={selectedDate}
