@@ -30,6 +30,8 @@ type Position = {
 
 const MIN_HEIGHT = 230;
 const MAX_HEIGHT = 720;
+const MIN_WIDTH = 260;
+const MAX_WIDTH = 720;
 
 export default function StickyNoteCard({
   note,
@@ -40,6 +42,7 @@ export default function StickyNoteCard({
   onDeleteRequest,
   onPinChange,
   onPositionChange,
+  onWidthChange,
   onHeightChange,
   onExpiresAtChange,
   onContentChange,
@@ -52,12 +55,14 @@ export default function StickyNoteCard({
   const [draftContent, setDraftContent] = useState(note.content);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isWidthResizing, setIsWidthResizing] = useState(false);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<StickyNoteBodyHandle | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
   const heightRef = useRef(note.height || MIN_HEIGHT);
+  const widthRef = useRef(Math.max(note.width, MIN_WIDTH));
 
   const defaultTop = getDockTop(index);
 
@@ -124,6 +129,12 @@ export default function StickyNoteCard({
     startHeight: number;
   } | null>(null);
 
+  const widthResizeStartRef = useRef<{
+    mouseX: number;
+    startWidth: number;
+    startX: number;
+  } | null>(null);
+
   const postItColor = useMemo(() => createPostItColor(note), [note]);
 
   const isDocked = viewState === "DOCKED";
@@ -144,6 +155,14 @@ export default function StickyNoteCard({
     }
 
     cardRef.current.style.height = `${height}px`;
+  };
+
+  const applyWidthToDom = (width: number) => {
+    if (!cardRef.current) {
+      return;
+    }
+
+    cardRef.current.style.width = `${width}px`;
   };
 
   const applyAutoHeightToDom = () => {
@@ -272,6 +291,14 @@ export default function StickyNoteCard({
   }, [note.height, note.collapsed]);
 
   useEffect(() => {
+    widthRef.current = Math.max(note.width, MIN_WIDTH);
+
+    window.requestAnimationFrame(() => {
+      applyWidthToDom(widthRef.current);
+    });
+  }, [note.width]);
+
+  useEffect(() => {
     setDraftContent(note.content);
   }, [note.content]);
 
@@ -296,7 +323,7 @@ export default function StickyNoteCard({
   };
 
   const handleMouseLeave = () => {
-    if (note.pinned || isDragging || isResizing) {
+    if (note.pinned || isDragging || isResizing || isWidthResizing) {
       return;
     }
 
@@ -394,6 +421,25 @@ export default function StickyNoteCard({
     };
 
     setIsResizing(true);
+  };
+
+  const handleWidthResizeStart = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    if (viewState === "DOCKED" || viewState === "PREVIEW") {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    widthResizeStartRef.current = {
+      mouseX: event.clientX,
+      startWidth: widthRef.current,
+      startX: openPositionRef.current.x,
+    };
+
+    setIsWidthResizing(true);
   };
 
   useEffect(() => {
@@ -518,13 +564,94 @@ export default function StickyNoteCard({
     };
   }, [isResizing, note.id, onHeightChange]);
 
+  useEffect(() => {
+    if (!isWidthResizing) {
+      return;
+    }
+
+    const handleMove = (event: MouseEvent) => {
+      if (!widthResizeStartRef.current) {
+        return;
+      }
+
+      const diff = widthResizeStartRef.current.mouseX - event.clientX;
+
+      const nextWidth = Math.round(
+        Math.min(
+          Math.max(widthResizeStartRef.current.startWidth + diff, MIN_WIDTH),
+          MAX_WIDTH,
+        ),
+      );
+
+      const rawX =
+        widthResizeStartRef.current.startX -
+        (nextWidth - widthResizeStartRef.current.startWidth);
+
+      const nextPosition = clampStickyNotePosition(
+        Math.round(rawX),
+        openPositionRef.current.y,
+        nextWidth,
+        heightRef.current,
+        window.innerWidth,
+        window.innerHeight,
+      );
+
+      widthRef.current = nextWidth;
+      openPositionRef.current = nextPosition;
+      visualPositionRef.current = nextPosition;
+
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      animationFrameRef.current = window.requestAnimationFrame(() => {
+        applyWidthToDom(nextWidth);
+        applyPositionToDom(nextPosition.x, nextPosition.y);
+      });
+    };
+
+    const handleUp = () => {
+      setIsWidthResizing(false);
+      widthResizeStartRef.current = null;
+
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+
+      const finalPosition = openPositionRef.current;
+
+      applyWidthToDom(widthRef.current);
+      applyPositionToDom(finalPosition.x, finalPosition.y);
+
+      onWidthChange(
+        note.id,
+        widthRef.current,
+        finalPosition.x,
+        finalPosition.y,
+      );
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isWidthResizing, note.id, onWidthChange]);
+
   const initialPosition = visualPositionRef.current;
 
   return (
     <div
       ref={cardRef}
       className={
-        isDragging || isResizing
+        isDragging || isResizing || isWidthResizing
           ? "fixed left-0 top-0 z-[1000] select-none will-change-transform"
           : "fixed left-0 top-0 z-[1000] transition-transform duration-200 ease-out will-change-transform"
       }
@@ -537,6 +664,18 @@ export default function StickyNoteCard({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
+      {isOpen && (
+        <div
+          data-resize-handle="true"
+          onMouseDown={handleWidthResizeStart}
+          className="group absolute -left-1 top-8 bottom-2 z-10 w-2 cursor-ew-resize"
+          title="좌우 크기 조절"
+          aria-label="좌우 크기 조절"
+        >
+          <span className="absolute bottom-2 left-1/2 top-2 w-px -translate-x-1/2 rounded-full bg-neutral-500/0 transition-colors group-hover:bg-neutral-500/45" />
+        </div>
+      )}
+
       <div
         className="flex h-full flex-col overflow-hidden border border-neutral-900 shadow-lg"
         style={{

@@ -63,6 +63,7 @@ export type StickyNoteCardProps = {
   onDeleteRequest: (id: string) => void;
   onPinChange: (id: string, pinned: boolean) => void;
   onPositionChange: (id: string, x: number, y: number) => void;
+  onWidthChange: (id: string, width: number, x: number, y: number) => void;
   onHeightChange: (id: string, height: number) => void;
   onExpiresAtChange: (id: string, expiresAt: string) => void;
   onContentChange: (id: string, content: string) => void;
