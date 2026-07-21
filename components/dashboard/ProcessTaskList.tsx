@@ -22,7 +22,12 @@ type ProcessTaskListProps = {
   onUpdateTaskStatus: (taskId: string, status: WorkStatus) => Promise<void>;
   onDeleteTask: (taskId: string) => Promise<void>;
 };
-
+const STATUS_ORDER: Record<WorkStatus, number> = {
+  BEFORE: 0,
+  IN_PROGRESS: 1,
+  ON_HOLD: 2,
+  COMPLETED: 3,
+};
 export default function ProcessTaskList({
   tasks,
   isLoading,
@@ -36,6 +41,18 @@ export default function ProcessTaskList({
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      const statusDifference = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+
+      if (statusDifference !== 0) {
+        return statusDifference;
+      }
+
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [tasks]);
 
   const taskCountText = useMemo(() => {
     if (tasks.length === 0) {
@@ -100,7 +117,7 @@ export default function ProcessTaskList({
           </div>
         ) : tasks.length > 0 ? (
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-soft">
-            {tasks.map((task) => (
+            {sortedTasks.map((task) => (
               <ProcessTaskCard
                 key={task.id}
                 task={task}

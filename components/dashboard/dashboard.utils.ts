@@ -46,7 +46,8 @@ export function getStatusLabel(
   }
 
   const label =
-    STATUS_OPTIONS.find((option) => option.value === status)?.label ?? "시행 전";
+    STATUS_OPTIONS.find((option) => option.value === status)?.label ??
+    "시행 전";
 
   if (status === "IN_PROGRESS" && createdDate) {
     return `${label} · ${formatShortDate(createdDate)} ~`;
@@ -61,7 +62,7 @@ export function getStatusLabel(
 
 export function getStatusClassName(status: WorkStatus) {
   if (status === "IN_PROGRESS") {
-    return "bg-sky-50 text-sky-600";
+    return "bg-orange-100 text-slate-700";
   }
 
   if (status === "ON_HOLD") {
@@ -69,7 +70,7 @@ export function getStatusClassName(status: WorkStatus) {
   }
 
   if (status === "COMPLETED") {
-    return "bg-emerald-50 text-emerald-600";
+    return "bg-zinc-100 text-zinc-500";
   }
 
   return "bg-zinc-100 text-zinc-500";
@@ -77,11 +78,11 @@ export function getStatusClassName(status: WorkStatus) {
 
 export function getSelectedStatusClassName(status: SelectableWorkStatus) {
   if (status === "IN_PROGRESS") {
-    return "bg-sky-100 text-sky-700";
+    return "bg-white text-[#C26328]";
   }
 
   if (status === "COMPLETED") {
-    return "bg-emerald-100 text-emerald-700";
+    return "bg-gray-200 text-slate-600";
   }
 
   return "bg-white text-slate-600";

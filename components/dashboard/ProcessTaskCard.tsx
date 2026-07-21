@@ -38,13 +38,15 @@ export default function ProcessTaskCard({
           ? [
               "border-slate-300/80",
               "ring-1 ring-slate-200/60",
-              "shadow-[0_7px_20px_rgba(15,23,42,0.08)]",
+              "shadow-[0_4px_12px_rgba(15,23,42,0.07)]",
             ].join(" ")
-          : [
-              "shadow-[0_2px_7px_rgba(15,23,42,0.055)]",
-              "hover:border-slate-300/80",
-              "hover:shadow-[0_5px_15px_rgba(15,23,42,0.075)]",
-            ].join(" "),
+          : task.status === "COMPLETED"
+            ? ["shadow-[inset_0_1px_3px_rgba(15,23,42,0.07)]"].join(" ")
+            : [
+                "bg-white",
+                "shadow-[0_2px_8px_rgba(15,23,42,0.07)]",
+                "hover:border-slate-300/80",
+              ].join(" "),
       ].join(" ")}
     >
       <button
