@@ -242,7 +242,7 @@ export function clampStickyNotePosition(
   const minX = -width + minVisibleWidth;
   const maxX = viewportWidth - minVisibleWidth;
 
-  const minY = -height + minVisibleHeight;
+  const minY = 5;
   const maxY = viewportHeight - minVisibleHeight;
 
   return {
