@@ -22,7 +22,7 @@ export default function SettingCornerLink() {
         "
       />
 
-      <span className="absolute right-0.5 top-0.5 z-10 text-[14px] leading-none text-white">
+      <span className="absolute right-0.5 top-0.5 z-10 text-[14px] leading-none text-[#fff]">
         ⚙
       </span>
     </Link>

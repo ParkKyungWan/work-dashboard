@@ -1,6 +1,7 @@
 // app/settings/page.tsx
 
 import Link from "next/link";
+import ThemeToggle from "@/components/setting/ThemeToggle";
 
 type SettingItem = {
   href: string;
@@ -47,16 +48,20 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <Link
-            href="/"
-            className="
-              rounded-md border border-neutral-300 bg-white
-              px-4 py-2 text-sm font-medium
-              transition-colors hover:bg-neutral-50
-            "
-          >
-            메인으로
-          </Link>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+
+            <Link
+              href="/"
+              className="
+                rounded-md border border-neutral-300 bg-white
+                px-4 py-2 text-sm font-medium
+                transition-colors hover:bg-neutral-50
+              "
+            >
+              메인으로
+            </Link>
+          </div>
         </header>
 
         <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">

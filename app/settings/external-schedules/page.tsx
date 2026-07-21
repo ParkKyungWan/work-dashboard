@@ -281,7 +281,7 @@ export default function ExternalSchedulesPage() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="rounded-md bg-neutral-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md bg-strong px-5 py-2 text-sm font-semibold text-on-strong transition-colors hover:bg-strong-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? "저장 중" : editingId ? "수정하기" : "추가하기"}
               </button>

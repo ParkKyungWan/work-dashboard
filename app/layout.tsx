@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
+
+const themeScript = `
+  try {
+    var savedTheme = localStorage.getItem("work-dashboard-theme");
+    if (savedTheme === "dark") document.documentElement.classList.add("dark");
+  } catch (_) {}
+`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +36,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       spellCheck={false}
     >
+      <head>
+        <Script
+          id="theme-initializer"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

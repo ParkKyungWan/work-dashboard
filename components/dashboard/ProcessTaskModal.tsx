@@ -195,7 +195,7 @@ export default function ProcessTaskModal({
             <button
               type="submit"
               disabled={!taskDraft.title.trim() || isSaving}
-              className="h-8 rounded-lg bg-blue-600 px-4 text-[14px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="h-8 rounded-lg bg-blue-600 px-4 text-[14px] font-semibold text-[#fff] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {isSaving ? "저장 중" : "추가"}
             </button>

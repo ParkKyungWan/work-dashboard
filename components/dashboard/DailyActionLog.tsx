@@ -153,7 +153,7 @@ export default function DailyActionLog({
           <button
             type="submit"
             disabled={isSaving}
-            className="shrink-0 rounded-lg bg-slate-800 px-4 text-[13px] font-semibold text-white transition hover:bg-slate-700 active:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-strong px-4 text-[13px] font-semibold text-on-strong transition hover:bg-strong-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSaving ? "저장 중" : "기록"}
           </button>

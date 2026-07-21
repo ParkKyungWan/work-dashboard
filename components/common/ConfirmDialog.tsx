@@ -105,8 +105,8 @@ export default function ConfirmDialog({
             className={[
               "h-9 rounded-lg text-[13px] font-semibold transition",
               danger
-                ? "bg-red-500 text-white shadow-[0_2px_6px_rgba(239,68,68,0.2)] hover:bg-red-600 active:bg-red-700"
-                : "bg-slate-700 text-white shadow-[0_2px_6px_rgba(15,23,42,0.14)] hover:bg-slate-800 active:bg-slate-900",
+                ? "bg-red-500 text-[#fff] shadow-[0_2px_6px_rgba(239,68,68,0.2)] hover:bg-red-600 active:bg-red-700"
+                : "bg-strong text-on-strong shadow-[0_2px_6px_rgba(15,23,42,0.14)] hover:bg-strong-hover",
             ].join(" ")}
           >
             {confirmText}

@@ -427,7 +427,7 @@ export default function AppDayPicker({
             "flex h-7 w-7 cursor-pointer items-center justify-center rounded text-[11px] text-neutral-800 transition hover:bg-neutral-100",
 
           selected:
-            "[&>button]:!bg-neutral-900 [&>button]:!font-semibold [&>button]:!text-white [&>button]:hover:!bg-neutral-800",
+            "[&>button]:!bg-strong [&>button]:!font-semibold [&>button]:!text-on-strong [&>button]:hover:!bg-strong-hover",
 
           today:
             "[&>button]:border [&>button]:border-neutral-900 [&>button]:font-bold",
