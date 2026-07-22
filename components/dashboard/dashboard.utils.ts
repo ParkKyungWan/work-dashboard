@@ -62,7 +62,7 @@ export function getStatusLabel(
 
 export function getStatusClassName(status: WorkStatus) {
   if (status === "IN_PROGRESS") {
-    return "bg-orange-100 text-slate-700";
+    return "bg-[#fed7aa] text-[#2b241b]";
   }
 
   if (status === "ON_HOLD") {
