@@ -375,19 +375,19 @@ export default function AppDayPicker({
             "calendar-day-holiday [&>button]:bg-red-100 [&>button]:font-semibold [&>button]:text-red-600 [&>button]:hover:bg-red-200",
 
           externalSchedule:
-            "calendar-day-external [&>button]:!bg-emerald-50 [&>button]:font-semibold [&>button]:!text-emerald-700 [&>button]:hover:!bg-emerald-200",
+            "calendar-day-external [&>button]:bg-emerald-50 [&>button]:font-semibold [&>button]:text-emerald-700 [&>button]:hover:bg-emerald-200",
 
           internalSchedule:
-            "calendar-day-internal [&>button]:!bg-sky-50 [&>button]:font-semibold [&>button]:!text-sky-700 [&>button]:hover:!bg-sky-200",
+            "calendar-day-internal [&>button]:bg-sky-50 [&>button]:font-semibold [&>button]:text-sky-700 [&>button]:hover:bg-sky-200",
 
           annualLeave:
-            "calendar-day-leave [&>button]:!bg-amber-100 [&>button]:font-semibold [&>button]:!text-orange-700 [&>button]:hover:!bg-orange-200",
+            "calendar-day-leave [&>button]:bg-amber-100 [&>button]:font-semibold [&>button]:text-orange-700 [&>button]:hover:bg-orange-200",
 
           halfDay:
-            "calendar-day-half-day [&>button]:!bg-yellow-100 [&>button]:font-semibold [&>button]:!text-yellow-700 [&>button]:hover:!bg-yellow-200",
+            "calendar-day-half-day [&>button]:bg-yellow-100 [&>button]:font-semibold [&>button]:text-yellow-700 [&>button]:hover:bg-yellow-200",
 
           specialLeave:
-            "calendar-day-leave [&>button]:!bg-amber-100 [&>button]:font-semibold [&>button]:!text-orange-700 [&>button]:hover:!bg-orange-200",
+            "calendar-day-leave [&>button]:bg-amber-100 [&>button]:font-semibold [&>button]:text-orange-700 [&>button]:hover:bg-orange-200",
 
           payday:
             "[&>button]:relative [&>button]:font-bold after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-red-500",

@@ -411,7 +411,11 @@ textarea:focus-visible {
 }
 
 :is(:root[data-theme="dark"], html.dark) .sticky-note-surface {
-  background-color: color-mix(in srgb, var(--sticky-note-color) 24%, #17191c) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--sticky-note-color) 24%,
+    #17191c
+  ) !important;
 }
 
 :is(:root[data-theme="dark"], html.dark) .sticky-note-content {
@@ -422,6 +426,7 @@ textarea:focus-visible {
   color: rgba(229, 231, 235, 0.55);
 }
 
+/* 주말 */
 :is(:root[data-theme="dark"], html.dark) .calendar-day-weekend > button {
   background-color: #2a2022;
   color: #fca5a5;
@@ -431,6 +436,7 @@ textarea:focus-visible {
   background-color: #372629;
 }
 
+/* 공휴일 */
 :is(:root[data-theme="dark"], html.dark) .calendar-day-holiday > button {
   background-color: #3b2226;
   color: #fecaca;
@@ -440,38 +446,42 @@ textarea:focus-visible {
   background-color: #4a292e;
 }
 
+/* 외부 일정 */
 :is(:root[data-theme="dark"], html.dark) .calendar-day-external > button {
-  background-color: #17362f !important;
+  background-color: #192923 !important;
   color: #a7f3d0 !important;
 }
 
 :is(:root[data-theme="dark"], html.dark) .calendar-day-external > button:hover {
-  background-color: #1d463c !important;
+  background-color: #20352d !important;
 }
 
+/* 내부 일정 */
 :is(:root[data-theme="dark"], html.dark) .calendar-day-internal > button {
-  background-color: #172f40 !important;
+  background-color: #19262e !important;
   color: #bae6fd !important;
 }
 
 :is(:root[data-theme="dark"], html.dark) .calendar-day-internal > button:hover {
-  background-color: #1d3c51 !important;
+  background-color: #20313b !important;
 }
 
+/* 연차·특별휴가 */
 :is(:root[data-theme="dark"], html.dark) .calendar-day-leave > button {
-  background-color: #3b2b18 !important;
+  background-color: #2b241b !important;
   color: #fed7aa !important;
 }
 
 :is(:root[data-theme="dark"], html.dark) .calendar-day-leave > button:hover {
-  background-color: #4a361d !important;
+  background-color: #382e21 !important;
 }
 
+/* 반차 */
 :is(:root[data-theme="dark"], html.dark) .calendar-day-half-day > button {
-  background-color: #393316 !important;
+  background-color: #2a281a !important;
   color: #fef08a !important;
 }
 
 :is(:root[data-theme="dark"], html.dark) .calendar-day-half-day > button:hover {
-  background-color: #48401a !important;
+  background-color: #373421 !important;
 }
