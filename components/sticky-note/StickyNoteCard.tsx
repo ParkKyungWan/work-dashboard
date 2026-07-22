@@ -2,7 +2,13 @@
 
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import StickyNoteBody, { type StickyNoteBodyHandle } from "./StickyNoteBody";
 import StickyNoteCollapseBar from "./StickyNoteCollapseBar";
@@ -24,6 +30,10 @@ import {
 type Position = {
   x: number;
   y: number;
+};
+
+type StickyNoteStyle = CSSProperties & {
+  "--sticky-note-color": string;
 };
 
 const MIN_HEIGHT = 230;
@@ -825,17 +835,15 @@ export default function StickyNoteCard({
       )}
 
       <div
-        className="flex h-full flex-col overflow-hidden border border-neutral-900 shadow-lg"
+        className="sticky-note-surface flex h-full flex-col overflow-hidden border border-neutral-900 shadow-lg"
         style={{
+          "--sticky-note-color": postItColor,
           backgroundColor: postItColor,
-        }}
+        } as StickyNoteStyle}
       >
         <div
           onMouseDown={handleDragStart}
-          className={isOpen ? "shrink-0 cursor-move" : "shrink-0"}
-          style={{
-            backgroundColor: postItColor,
-          }}
+          className={`sticky-note-surface ${isOpen ? "shrink-0 cursor-move" : "shrink-0"}`}
         >
           <StickyNoteHeader
             content={draftContent}
@@ -851,10 +859,7 @@ export default function StickyNoteCard({
         {isOpen && (
           <>
             <div
-              className="min-h-0 flex-1"
-              style={{
-                backgroundColor: postItColor,
-              }}
+              className="sticky-note-surface min-h-0 flex-1"
             >
               <StickyNoteBody
                 ref={bodyRef}

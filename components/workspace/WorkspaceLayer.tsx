@@ -156,7 +156,7 @@ export default function WorkspaceLayer({
         id: `holiday-${viewDate}`,
         type: "HOLIDAY",
         label: selectedDateInfo.holidayName,
-        className: "text-red-600",
+        className: "workspace-schedule-holiday text-red-600",
       });
     }
 
@@ -179,7 +179,7 @@ export default function WorkspaceLayer({
             id: `leave-${leaveDay.id}`,
             type: leaveDay.type,
             label: leaveTitle ? `연차 - ${leaveTitle}` : "연차",
-            className: "text-orange-700",
+            className: "workspace-schedule-leave text-orange-700",
           });
 
           return;
@@ -190,7 +190,7 @@ export default function WorkspaceLayer({
             id: `leave-${leaveDay.id}`,
             type: leaveDay.type,
             label: "오전 반차",
-            className: "text-yellow-700",
+            className: "workspace-schedule-half-day text-yellow-700",
           });
 
           return;
@@ -201,7 +201,7 @@ export default function WorkspaceLayer({
             id: `leave-${leaveDay.id}`,
             type: leaveDay.type,
             label: "오후 반차",
-            className: "text-yellow-700",
+            className: "workspace-schedule-half-day text-yellow-700",
           });
 
           return;
@@ -211,7 +211,7 @@ export default function WorkspaceLayer({
           id: `leave-${leaveDay.id}`,
           type: leaveDay.type,
           label: leaveDay.label.trim() || "특별휴가",
-          className: "text-orange-700",
+          className: "workspace-schedule-leave text-orange-700",
         });
       });
 
@@ -223,7 +223,7 @@ export default function WorkspaceLayer({
           type: "EXTERNAL_SCHEDULE",
           label: schedule.title.trim() || "외부 일정",
           title: schedule.memo.trim() || undefined,
-          className: "text-emerald-700",
+          className: "workspace-schedule-external text-emerald-700",
         });
       });
 
@@ -240,7 +240,7 @@ export default function WorkspaceLayer({
             type: "INTERNAL_SCHEDULE",
             label: schedule.title.trim() || "내부 일정",
             title: schedule.memo.trim() || undefined,
-            className: "text-sky-700",
+            className: "workspace-schedule-internal text-sky-700",
           });
         });
     }
@@ -250,7 +250,7 @@ export default function WorkspaceLayer({
         id: `weekend-${viewDate}`,
         type: "WEEKEND",
         label: "주말",
-        className: "text-red-500",
+        className: "workspace-schedule-weekend text-red-500",
       });
     }
 
@@ -1107,7 +1107,7 @@ export default function WorkspaceLayer({
         className="pointer-events-none fixed inset-0 z-[1000]"
       >
         <div className="fixed left-6 top-5 z-[1100] flex h-10 w-max items-center gap-3 overflow-visible whitespace-nowrap">
-          <h1 className="shrink-0 text-[21px] font-bold tracking-tight text-neutral-900">
+          <h1 className="workspace-date-title shrink-0 text-[21px] font-bold tracking-tight text-neutral-900">
             {workspaceDateLabel}
           </h1>
 

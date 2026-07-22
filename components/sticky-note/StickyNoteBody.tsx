@@ -180,7 +180,7 @@ export default function StickyNoteBody({
         className={[
           "h-full w-full overflow-y-auto border-0 bg-transparent",
           "whitespace-pre-wrap break-words pr-2",
-          "text-slate-800",
+          "sticky-note-content text-slate-800",
           "outline-none ring-0 shadow-none",
           "focus:outline-none focus:ring-0 focus:shadow-none",
           "focus-visible:outline-none focus-visible:ring-0",

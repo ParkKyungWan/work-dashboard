@@ -45,12 +45,10 @@ export default function StickyNoteHeader({
         onClick={onOpen}
         className={[
           "flex h-9 w-full items-center px-3 text-left",
-          "text-xs font-medium text-slate-700",
+          "sticky-note-surface sticky-note-content text-xs font-medium text-slate-700",
           "transition hover:brightness-[0.98]",
         ].join(" ")}
-        style={{
-          backgroundColor: postItColor,
-        }}
+        style={{ backgroundColor: postItColor }}
         title="스티커 열기"
         aria-label="스티커 열기"
       >
@@ -70,10 +68,8 @@ export default function StickyNoteHeader({
 
   return (
     <div
-      className="flex h-8 w-full items-center justify-between px-2.5"
-      style={{
-        backgroundColor: postItColor,
-      }}
+      className="sticky-note-surface flex h-8 w-full items-center justify-between px-2.5"
+      style={{ backgroundColor: postItColor }}
     >
       <span
         className="grid shrink-0 cursor-move grid-cols-3 gap-[2px] rounded-md p-1"
