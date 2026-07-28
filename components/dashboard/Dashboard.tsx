@@ -176,9 +176,10 @@ export default function Dashboard() {
     setActionLogError(null);
 
     try {
-      const response = await fetch(`/api/daily-action-logs/${actionLogId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/daily-action-logs/${actionLogId}?date=${encodeURIComponent(viewDate)}`,
+        { method: "DELETE" },
+      );
 
       if (!response.ok) {
         throw new Error("조치 기록을 삭제하지 못했습니다.");

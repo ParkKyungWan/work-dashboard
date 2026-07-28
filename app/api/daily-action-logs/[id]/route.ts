@@ -10,9 +10,11 @@ type RouteContext = {
 };
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
+  const date = request.nextUrl.searchParams.get("date") ?? "";
   const body = (await request.json().catch(() => null)) as {
     target?: unknown;
     description?: unknown;
@@ -22,6 +24,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (!body) {
     return NextResponse.json(
       { message: "수정할 값이 필요합니다." },
+      { status: 400 },
+    );
+  }
+
+  if (!DATE_PATTERN.test(date)) {
+    return NextResponse.json(
+      { message: "올바른 date 값이 필요합니다." },
       { status: 400 },
     );
   }
@@ -62,7 +71,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     patch.time = body.time;
   }
 
-  const log = await updateDailyActionLog(id, patch);
+  const log = await updateDailyActionLog(date, id, patch);
 
   if (!log) {
     return NextResponse.json(
@@ -74,9 +83,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   return NextResponse.json(log);
 }
 
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
-  const deleted = await deleteDailyActionLog(id);
+  const date = request.nextUrl.searchParams.get("date") ?? "";
+
+  if (!DATE_PATTERN.test(date)) {
+    return NextResponse.json(
+      { message: "올바른 date 값이 필요합니다." },
+      { status: 400 },
+    );
+  }
+
+  const deleted = await deleteDailyActionLog(date, id);
 
   if (!deleted) {
     return NextResponse.json(

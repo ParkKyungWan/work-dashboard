@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "fs/promises";
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 
 import type {
@@ -6,17 +6,20 @@ import type {
   DailyActionLogItem,
 } from "@/components/dashboard/dashboard.types";
 
-type DailyActionLogIndexItem = Pick<
-  DailyActionLogItem,
-  "id" | "date" | "time" | "createdAt"
->;
-
 const ROOT_DIRECTORY = path.join(process.cwd(), "data", "daily-action-logs");
-const LOGS_DIRECTORY = path.join(ROOT_DIRECTORY, "logs");
-const INDEX_FILE_PATH = path.join(ROOT_DIRECTORY, "index.json");
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const pendingWrites = new Map<string, Promise<void>>();
 
-function createLogFilePath(id: string) {
-  return path.join(LOGS_DIRECTORY, `${id}.json`);
+function createLogsFilePath(date: string) {
+  const match = DATE_PATTERN.exec(date);
+
+  if (!match) {
+    throw new Error(`Invalid daily action log date: ${date}`);
+  }
+
+  const [, year, month, day] = match;
+
+  return path.join(ROOT_DIRECTORY, year, month, day, "logs.json");
 }
 
 function createActionLogId() {
@@ -37,78 +40,81 @@ function createActionLogId() {
 }
 
 async function writeJsonAtomically(filePath: string, value: unknown) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+
   const temporaryPath = `${filePath}.${crypto.randomUUID()}.tmp`;
 
   await writeFile(temporaryPath, JSON.stringify(value, null, 2), "utf-8");
   await rename(temporaryPath, filePath);
 }
 
-async function ensureStore() {
-  await mkdir(LOGS_DIRECTORY, { recursive: true });
-
+async function readLogs(date: string): Promise<DailyActionLogItem[]> {
   try {
-    await readFile(INDEX_FILE_PATH, "utf-8");
-  } catch {
-    await writeJsonAtomically(INDEX_FILE_PATH, []);
-  }
-}
-
-async function readIndex(): Promise<DailyActionLogIndexItem[]> {
-  await ensureStore();
-
-  try {
-    const content = await readFile(INDEX_FILE_PATH, "utf-8");
+    const content = await readFile(createLogsFilePath(date), "utf-8");
     const parsed = JSON.parse(content) as unknown;
 
-    return Array.isArray(parsed) ? (parsed as DailyActionLogIndexItem[]) : [];
-  } catch {
-    return [];
+    return Array.isArray(parsed) ? (parsed as DailyActionLogItem[]) : [];
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return [];
+    }
+
+    throw error;
   }
 }
 
-async function writeIndex(items: DailyActionLogIndexItem[]) {
-  await ensureStore();
-  await writeJsonAtomically(INDEX_FILE_PATH, items);
+function sortLogs(logs: DailyActionLogItem[]) {
+  return logs.sort((first, second) => {
+    const timeComparison = second.time.localeCompare(first.time);
+
+    return timeComparison !== 0
+      ? timeComparison
+      : second.createdAt.localeCompare(first.createdAt);
+  });
 }
 
-async function readDailyActionLogById(
-  id: string,
-): Promise<DailyActionLogItem | null> {
-  await ensureStore();
+async function updateDateFile<T>(
+  date: string,
+  update: (logs: DailyActionLogItem[]) => { logs: DailyActionLogItem[]; result: T },
+) {
+  const filePath = createLogsFilePath(date);
+  const previousWrite = pendingWrites.get(filePath) ?? Promise.resolve();
+  let result!: T;
+
+  const currentWrite = previousWrite
+    .catch(() => undefined)
+    .then(async () => {
+      const currentLogs = await readLogs(date);
+      const updateResult = update(currentLogs);
+
+      result = updateResult.result;
+      await writeJsonAtomically(filePath, sortLogs(updateResult.logs));
+    });
+
+  pendingWrites.set(filePath, currentWrite);
 
   try {
-    const content = await readFile(createLogFilePath(id), "utf-8");
-
-    return JSON.parse(content) as DailyActionLogItem;
-  } catch {
-    return null;
+    await currentWrite;
+    return result;
+  } finally {
+    if (pendingWrites.get(filePath) === currentWrite) {
+      pendingWrites.delete(filePath);
+    }
   }
 }
 
 export async function readDailyActionLogsByDate(date: string) {
-  const indexItems = await readIndex();
-  const matchingItems = indexItems.filter((item) => item.date === date);
-  const logs = await Promise.all(
-    matchingItems.map((item) => readDailyActionLogById(item.id)),
-  );
-
-  return logs
-    .filter((log): log is DailyActionLogItem => log !== null)
-    .sort((first, second) => {
-      const timeComparison = second.time.localeCompare(first.time);
-
-      return timeComparison !== 0
-        ? timeComparison
-        : second.createdAt.localeCompare(first.createdAt);
-    });
+  return sortLogs(await readLogs(date));
 }
 
 export async function createDailyActionLog(
   date: string,
   draft: DailyActionLogDraft,
 ) {
-  await ensureStore();
-
   const now = new Date().toISOString();
   const log: DailyActionLogItem = {
     id: createActionLogId(),
@@ -120,71 +126,50 @@ export async function createDailyActionLog(
     updatedAt: now,
   };
 
-  await writeJsonAtomically(createLogFilePath(log.id), log);
-
-  const indexItems = await readIndex();
-  await writeIndex([
-    {
-      id: log.id,
-      date: log.date,
-      time: log.time,
-      createdAt: log.createdAt,
-    },
-    ...indexItems,
-  ]);
-
-  return log;
+  return updateDateFile(date, (logs) => ({
+    logs: [log, ...logs],
+    result: log,
+  }));
 }
 
 export async function updateDailyActionLog(
+  date: string,
   id: string,
   patch: Partial<DailyActionLogDraft>,
 ) {
-  const existingLog = await readDailyActionLogById(id);
+  return updateDateFile<DailyActionLogItem | null>(date, (logs) => {
+    const existingLog = logs.find((log) => log.id === id);
 
-  if (!existingLog) {
-    return null;
-  }
+    if (!existingLog) {
+      return { logs, result: null };
+    }
 
-  const updatedLog: DailyActionLogItem = {
-    ...existingLog,
-    target:
-      patch.target !== undefined ? patch.target.trim() : existingLog.target,
-    description:
-      patch.description !== undefined
-        ? patch.description.trim()
-        : existingLog.description,
-    time: patch.time ?? existingLog.time,
-    updatedAt: new Date().toISOString(),
-  };
+    const updatedLog: DailyActionLogItem = {
+      ...existingLog,
+      target:
+        patch.target !== undefined ? patch.target.trim() : existingLog.target,
+      description:
+        patch.description !== undefined
+          ? patch.description.trim()
+          : existingLog.description,
+      time: patch.time ?? existingLog.time,
+      updatedAt: new Date().toISOString(),
+    };
 
-  await writeJsonAtomically(createLogFilePath(id), updatedLog);
-
-  const indexItems = await readIndex();
-  await writeIndex(
-    indexItems.map((item) =>
-      item.id === id ? { ...item, time: updatedLog.time } : item,
-    ),
-  );
-
-  return updatedLog;
+    return {
+      logs: logs.map((log) => (log.id === id ? updatedLog : log)),
+      result: updatedLog,
+    };
+  });
 }
 
-export async function deleteDailyActionLog(id: string) {
-  const indexItems = await readIndex();
-  const exists = indexItems.some((item) => item.id === id);
+export async function deleteDailyActionLog(date: string, id: string) {
+  return updateDateFile(date, (logs) => {
+    const remainingLogs = logs.filter((log) => log.id !== id);
 
-  if (!exists) {
-    return false;
-  }
-
-  try {
-    await unlink(createLogFilePath(id));
-  } catch {
-    // 인덱스에만 남은 기록도 함께 정리한다.
-  }
-
-  await writeIndex(indexItems.filter((item) => item.id !== id));
-
-  return true;
+    return {
+      logs: remainingLogs,
+      result: remainingLogs.length !== logs.length,
+    };
+  });
 }
