@@ -44,3 +44,9 @@ next-env.d.ts
 
 #data
 /data/
+
+# public/programs 내부는 모두 제외
+/public/programs/*
+
+# readme.md만 다시 포함
+!/public/programs/README.md

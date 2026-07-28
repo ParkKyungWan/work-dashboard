@@ -1,6 +1,7 @@
 // app/work-log/page.tsx
 
 import Dashboard from "@/components/dashboard/Dashboard";
+import ProgramDockArea from "@/components/program-dock/ProgramDockArea";
 import SettingCornerLink from "@/components/setting/SettingCornerLink";
 import { WorkspaceDateProvider } from "@/components/workspace/WorkspaceDateProvider";
 import WorkspaceLayer from "@/components/workspace/WorkspaceLayer";
@@ -13,6 +14,7 @@ export default function Page() {
         <Dashboard />
         <WorkspaceLayer scope="work-log" />
       </WorkspaceDateProvider>
+      <ProgramDockArea />
     </main>
   );
 }
