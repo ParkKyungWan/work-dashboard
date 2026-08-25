@@ -13,6 +13,13 @@ type SettingItem = {
 
 const SETTING_ITEMS: SettingItem[] = [
   {
+    href: "/settings/program-shortcuts",
+    title: "프로그램 바로가기",
+    description: "하단 Dock에서 실행할 프로그램을 선택합니다.",
+    badge: "Dock",
+    badgeClassName: "bg-violet-100 text-violet-700",
+  },
+  {
     href: "/settings/leave",
     title: "연차 설정",
     description: "연차, 반차, 특별휴가를 등록하고 관리합니다.",
