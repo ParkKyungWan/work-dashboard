@@ -57,6 +57,7 @@ export default function ProgramWindow({
   const interactionRef = useRef<Interaction | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const onChangeRef = useRef(onChange);
+  const restoreRectRef = useRef<WindowRect | null>(null);
 
   const latestRectRef = useRef<WindowRect>({
     x: windowState.x,
@@ -67,6 +68,7 @@ export default function ProgramWindow({
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -82,6 +84,26 @@ export default function ProgramWindow({
       height: windowState.height,
     };
   }, [windowState.x, windowState.y, windowState.width, windowState.height]);
+
+  useEffect(() => {
+    if (!isMaximized) return;
+
+    const fitToViewport = () => {
+      const maximizedRect = {
+        x: 0,
+        y: 0,
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
+
+      latestRectRef.current = maximizedRect;
+      onChangeRef.current(maximizedRect);
+    };
+
+    window.addEventListener("resize", fitToViewport);
+
+    return () => window.removeEventListener("resize", fitToViewport);
+  }, [isMaximized]);
 
   useEffect(() => {
     const scheduleDomUpdate = (interaction: Interaction) => {
@@ -240,6 +262,8 @@ export default function ProgramWindow({
     event: ReactPointerEvent<HTMLElement>,
     direction?: ResizeDirection,
   ) => {
+    if (isMaximized) return;
+
     event.preventDefault();
     event.stopPropagation();
 
@@ -267,6 +291,41 @@ export default function ProgramWindow({
       startWidth: windowState.width,
       startHeight: windowState.height,
     };
+  };
+
+  const toggleMaximize = () => {
+    if (isMaximized) {
+      const restoreRect = restoreRectRef.current;
+
+      setIsMaximized(false);
+      restoreRectRef.current = null;
+
+      if (restoreRect) {
+        latestRectRef.current = restoreRect;
+        onChange(restoreRect);
+      }
+
+      return;
+    }
+
+    restoreRectRef.current = {
+      x: windowState.x,
+      y: windowState.y,
+      width: windowState.width,
+      height: windowState.height,
+    };
+
+    const maximizedRect = {
+      x: 0,
+      y: 0,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+
+    latestRectRef.current = maximizedRect;
+    setIsMaximized(true);
+    onActivate();
+    onChange(maximizedRect);
   };
 
   return (
@@ -307,14 +366,27 @@ export default function ProgramWindow({
           {program.name}
         </h2>
 
-        <button
-          type="button"
-          aria-label={`${program.name} 종료`}
-          title="종료"
-          className="group flex h-5 w-5 items-center justify-center rounded-full bg-rose-400 text-xs font-bold text-red-950/10 transition-colors hover:text-red-950/70"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={onClose}
-        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={`${program.name} ${
+              isMaximized ? "원래 크기로 복원" : "전체 화면"
+            }`}
+            title={isMaximized ? "원래 크기로 복원" : "전체 화면"}
+            className="group flex h-5 w-5 items-center justify-center rounded-full bg-lime-400 text-xs font-bold text-lime-950/10 transition-colors hover:text-lime-950/70"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={toggleMaximize}
+          />
+
+          <button
+            type="button"
+            aria-label={`${program.name} 종료`}
+            title="종료"
+            className="group flex h-5 w-5 items-center justify-center rounded-full bg-rose-400 text-xs font-bold text-red-950/10 transition-colors hover:text-red-950/70"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={onClose}
+          />
+        </div>
       </header>
 
       <div className="relative h-[calc(100%-40px)] bg-white">
@@ -366,11 +438,13 @@ export default function ProgramWindow({
         )}
       </div>
 
-      <ResizeHandles
-        onResizeStart={(direction, event) =>
-          beginInteraction("resize", event, direction)
-        }
-      />
+      {!isMaximized && (
+        <ResizeHandles
+          onResizeStart={(direction, event) =>
+            beginInteraction("resize", event, direction)
+          }
+        />
+      )}
     </section>
   );
 }
