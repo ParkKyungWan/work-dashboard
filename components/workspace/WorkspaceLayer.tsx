@@ -5,6 +5,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import {
+  WORKSPACE_SEARCH_CLEAR_EVENT,
+  WORKSPACE_SEARCH_SELECT_EVENT,
+  type SearchSelection,
+} from "@/components/search/search.types";
 import { AppDayPicker } from "@/components/day-picker";
 import type {
   Holiday,
@@ -125,6 +130,7 @@ export default function WorkspaceLayer({
   >([]);
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [searchTarget, setSearchTarget] = useState<{ id: string; query: string } | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
@@ -853,6 +859,28 @@ export default function WorkspaceLayer({
     }
   };
 
+  useEffect(() => {
+    const handleSelection = (event: Event) => {
+      const selection = (event as CustomEvent<SearchSelection>).detail;
+      if (selection.type !== "NOTE") return;
+      setSearchTarget({ id: selection.id, query: selection.query });
+    };
+    const handleClear = () => setSearchTarget(null);
+
+    window.addEventListener(WORKSPACE_SEARCH_SELECT_EVENT, handleSelection);
+    window.addEventListener(WORKSPACE_SEARCH_CLEAR_EVENT, handleClear);
+    return () => {
+      window.removeEventListener(WORKSPACE_SEARCH_SELECT_EVENT, handleSelection);
+      window.removeEventListener(WORKSPACE_SEARCH_CLEAR_EVENT, handleClear);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!searchTarget || !notes.some((note) => note.id === searchTarget.id)) return;
+    const targetId = searchTarget.id;
+    window.requestAnimationFrame(() => void handleExpand(targetId));
+  }, [notes, searchTarget]);
+
   const handleDeleteRequest = (id: string) => {
     setDeleteTargetId(id);
   };
@@ -1319,6 +1347,7 @@ export default function WorkspaceLayer({
             note={note}
             index={index}
             viewDate={viewDate}
+            highlightQuery={searchTarget?.id === note.id ? searchTarget.query : ""}
             onCollapse={handleCollapse}
             onExpand={handleExpand}
             onDeleteRequest={handleDeleteRequest}

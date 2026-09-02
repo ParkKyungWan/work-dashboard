@@ -1,6 +1,6 @@
 // lib/sticky-note-file-store.ts
 
-import { mkdir, readFile, readdir, unlink, writeFile } from "fs/promises";
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from "fs/promises";
 import path from "path";
 
 import type {
@@ -12,13 +12,39 @@ const ROOT_DIR = path.join(process.cwd(), "data", "sticky-notes");
 const NOTES_DIR = path.join(ROOT_DIR, "notes");
 const INDEX_FILE_PATH = path.join(ROOT_DIR, "index.json");
 
+async function writeJsonAtomically(filePath: string, value: unknown) {
+  const temporaryPath = `${filePath}.${crypto.randomUUID()}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(value, null, 2), "utf-8");
+  await rename(temporaryPath, filePath);
+}
+
+async function rebuildIndexFromNoteFiles() {
+  const files = await readdir(NOTES_DIR);
+  const notes = await Promise.all(
+    files
+      .filter((file) => file.endsWith(".json"))
+      .map(async (file) => {
+        const content = await readFile(path.join(NOTES_DIR, file), "utf-8");
+        return JSON.parse(content) as StickyNote;
+      }),
+  );
+  const indexItems = notes.map(toIndexItem);
+
+  await writeJsonAtomically(INDEX_FILE_PATH, indexItems);
+  return indexItems;
+}
+
 async function ensureStore() {
   await mkdir(NOTES_DIR, { recursive: true });
 
   try {
     await readFile(INDEX_FILE_PATH, "utf-8");
-  } catch {
-    await writeFile(INDEX_FILE_PATH, JSON.stringify([], null, 2), "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+
+    await rebuildIndexFromNoteFiles();
   }
 }
 
@@ -106,8 +132,9 @@ async function readIndex(): Promise<StickyNoteIndexItem[]> {
 
   try {
     return JSON.parse(content) as StickyNoteIndexItem[];
-  } catch {
-    return [];
+  } catch (error) {
+    console.error("스티커 인덱스가 손상되어 노트 파일에서 복구합니다:", error);
+    return rebuildIndexFromNoteFiles();
   }
 }
 
@@ -133,11 +160,7 @@ async function cleanOrphanedIndexItems() {
 async function writeIndex(indexItems: StickyNoteIndexItem[]) {
   await ensureStore();
 
-  await writeFile(
-    INDEX_FILE_PATH,
-    JSON.stringify(indexItems, null, 2),
-    "utf-8",
-  );
+  await writeJsonAtomically(INDEX_FILE_PATH, indexItems);
 }
 
 async function upsertIndexItem(note: StickyNote) {

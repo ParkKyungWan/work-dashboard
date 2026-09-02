@@ -481,6 +481,19 @@ textarea:focus-visible {
   color: rgba(229, 231, 235, 0.55);
 }
 
+.search-highlight {
+  border-radius: 0.125rem;
+  background-color: #fef08a;
+  color: #1e293b;
+  padding-inline: 0.125rem;
+}
+
+:is(:root[data-theme="dark"], html.dark) .search-highlight {
+  background-color: #fbbf24;
+  color: #111827;
+  box-shadow: 0 0 0 1px rgba(254, 240, 138, 0.28);
+}
+
 /* 주말 */
 :is(:root[data-theme="dark"], html.dark) .calendar-day-weekend > button {
   background-color: #2a2022;

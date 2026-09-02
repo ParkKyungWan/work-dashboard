@@ -24,6 +24,7 @@ export type StickyNoteBodyHandle = {
 type StickyNoteBodyProps = {
   ref?: Ref<StickyNoteBodyHandle>;
   content: string;
+  highlightQuery?: string;
   onContentChange: (content: string) => void;
 };
 
@@ -82,9 +83,11 @@ function sanitizeEditorHtml(html: string) {
 export default function StickyNoteBody({
   ref,
   content,
+  highlightQuery = "",
   onContentChange,
 }: StickyNoteBodyProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const appliedHighlightQueryRef = useRef("");
 
   const syncContent = () => {
     const editor = editorRef.current;
@@ -119,10 +122,57 @@ export default function StickyNoteBody({
 
     const sanitizedContent = sanitizeEditorHtml(content);
 
-    if (editor.innerHTML !== sanitizedContent) {
-      editor.innerHTML = sanitizedContent;
+    const query = highlightQuery.trim();
+    if (!query) {
+      appliedHighlightQueryRef.current = "";
+      if (editor.innerHTML !== sanitizedContent) editor.innerHTML = sanitizedContent;
+      return;
     }
-  }, [content]);
+
+    if (
+      appliedHighlightQueryRef.current === query &&
+      editor.querySelector("mark[data-search-highlight]")
+    ) {
+      return;
+    }
+
+    editor.innerHTML = sanitizedContent;
+    appliedHighlightQueryRef.current = query;
+
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let currentNode = walker.nextNode();
+    while (currentNode) {
+      textNodes.push(currentNode as Text);
+      currentNode = walker.nextNode();
+    }
+
+    const lowerQuery = query.toLocaleLowerCase("ko-KR");
+    textNodes.forEach((textNode) => {
+      const text = textNode.data;
+      const lowerText = text.toLocaleLowerCase("ko-KR");
+      let cursor = 0;
+      let matchIndex = lowerText.indexOf(lowerQuery, cursor);
+      if (matchIndex < 0) return;
+
+      const fragment = document.createDocumentFragment();
+      while (matchIndex >= 0) {
+        fragment.append(text.slice(cursor, matchIndex));
+        const mark = document.createElement("mark");
+        mark.dataset.searchHighlight = "true";
+        mark.className = "search-highlight";
+        mark.textContent = text.slice(matchIndex, matchIndex + query.length);
+        fragment.append(mark);
+        cursor = matchIndex + query.length;
+        matchIndex = lowerText.indexOf(lowerQuery, cursor);
+      }
+      fragment.append(text.slice(cursor));
+      textNode.replaceWith(fragment);
+    });
+
+    editor.querySelector<HTMLElement>("mark[data-search-highlight]")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [content, highlightQuery]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!event.ctrlKey && !event.metaKey) {

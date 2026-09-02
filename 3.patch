@@ -1,0 +1,920 @@
+diff --git a/app/api/search/route.ts b/app/api/search/route.ts
+new file mode 100644
+index 0000000..b1adf13
+--- /dev/null
++++ b/app/api/search/route.ts
+@@ -0,0 +1,98 @@
++import { NextRequest, NextResponse } from "next/server";
++
++import type { WorkStatus } from "@/components/dashboard/dashboard.types";
++import { readAllProcessTasks } from "@/lib/process-task-file-store";
++import { readAllStickyNotes } from "@/lib/sticky-note-file-store";
++
++const RESULT_LIMIT = 50;
++const STATUS_LABELS: Record<WorkStatus, string> = {
++  BEFORE: "진행 전",
++  IN_PROGRESS: "진행 중",
++  ON_HOLD: "보류",
++  COMPLETED: "완료",
++};
++
++function normalize(value: string) {
++  return value.normalize("NFKC").toLocaleLowerCase("ko-KR").replace(/\s+/g, " ").trim();
++}
++
++function htmlToText(value: string) {
++  return value
++    .replace(/<br\s*\/?>/gi, " ")
++    .replace(/<\/(p|div)>/gi, " ")
++    .replace(/<[^>]*>/g, "")
++    .replace(/&nbsp;/gi, " ")
++    .replace(/&amp;/gi, "&")
++    .replace(/&lt;/gi, "<")
++    .replace(/&gt;/gi, ">")
++    .replace(/&quot;/gi, '"')
++    .replace(/&#39;/gi, "'")
++    .replace(/\s+/g, " ")
++    .trim();
++}
++
++function createSnippet(text: string, query: string) {
++  const cleanText = text.replace(/\s+/g, " ").trim();
++  const index = normalize(cleanText).indexOf(query);
++  const start = Math.max(0, index - 28);
++  const end = Math.min(cleanText.length, start + 88);
++  return `${start > 0 ? "…" : ""}${cleanText.slice(start, end)}${end < cleanText.length ? "…" : ""}`;
++}
++
++function toDateKey(value: string) {
++  return new Intl.DateTimeFormat("en-CA", {
++    timeZone: "Asia/Seoul",
++    year: "numeric",
++    month: "2-digit",
++    day: "2-digit",
++  }).format(new Date(value));
++}
++
++export async function GET(request: NextRequest) {
++  const query = normalize(request.nextUrl.searchParams.get("q")?.slice(0, 100) ?? "");
++  if (!query) return NextResponse.json([]);
++
++  const [tasks, notes] = await Promise.all([readAllProcessTasks(), readAllStickyNotes()]);
++
++  const results = [
++    ...tasks.flatMap((task) => {
++      const titleMatches = normalize(task.title).includes(query);
++      const memoMatches = normalize(task.memo).includes(query);
++      if (!titleMatches && !memoMatches) return [];
++
++      return [{
++        id: task.id,
++        type: "TASK" as const,
++        title: task.title || "제목 없는 업무",
++        snippet: createSnippet(memoMatches ? task.memo : task.title, query),
++        date: task.createdDate,
++        meta: STATUS_LABELS[task.status],
++        matchedField: titleMatches ? "TITLE" as const : "CONTENT" as const,
++        updatedAt: task.updatedAt,
++      }];
++    }),
++    ...notes.flatMap((note) => {
++      if (note.status !== "ACTIVE") return [];
++      const content = htmlToText(note.content);
++      const titleMatches = normalize(note.title).includes(query);
++      const contentMatches = normalize(content).includes(query);
++      if (!titleMatches && !contentMatches) return [];
++
++      return [{
++        id: note.id,
++        type: "NOTE" as const,
++        title: note.title || "제목 없는 스티커",
++        snippet: createSnippet(contentMatches ? content : note.title, query),
++        date: toDateKey(note.startDate),
++        meta: "스티커노트",
++        matchedField: titleMatches ? "TITLE" as const : "CONTENT" as const,
++        updatedAt: note.updatedAt,
++      }];
++    }),
++  ]
++    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
++    .slice(0, RESULT_LIMIT)
++    .map(({ updatedAt: _updatedAt, ...result }) => result);
++
++  return NextResponse.json(results);
++}
+diff --git a/app/globals.css b/app/globals.css
+index e86025b..bbb475e 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -481,6 +481,19 @@ textarea:focus-visible {
+   color: rgba(229, 231, 235, 0.55);
+ }
+ 
++.search-highlight {
++  border-radius: 0.125rem;
++  background-color: #fef08a;
++  color: #1e293b;
++  padding-inline: 0.125rem;
++}
++
++:is(:root[data-theme="dark"], html.dark) .search-highlight {
++  background-color: #fbbf24;
++  color: #111827;
++  box-shadow: 0 0 0 1px rgba(254, 240, 138, 0.28);
++}
++
+ /* 주말 */
+ :is(:root[data-theme="dark"], html.dark) .calendar-day-weekend > button {
+   background-color: #2a2022;
+diff --git a/components/dashboard/Dashboard.tsx b/components/dashboard/Dashboard.tsx
+index c28809d..d427586 100644
+--- a/components/dashboard/Dashboard.tsx
++++ b/components/dashboard/Dashboard.tsx
+@@ -5,12 +5,10 @@
+ import { useCallback, useEffect, useRef, useState } from "react";
+ 
+ import { useWorkspaceDate } from "@/components/workspace/WorkspaceDateProvider";
++import WorkSearchPanel from "@/components/search/WorkSearchPanel";
+ 
+-import DailyActionLog from "./DailyActionLog";
+ import ProcessTaskList from "./ProcessTaskList";
+ import type {
+-  DailyActionLogItem,
+-  DailyActionLogDraft,
+   ProcessTask,
+   ProcessTaskDraft,
+   WorkStatus,
+@@ -18,67 +16,12 @@ import type {
+ 
+ export default function Dashboard() {
+   const { viewDate } = useWorkspaceDate();
+-  const [actionLogs, setActionLogs] = useState<DailyActionLogItem[]>([]);
+-  const [isActionLogsLoading, setIsActionLogsLoading] = useState(true);
+-  const [isActionLogSaving, setIsActionLogSaving] = useState(false);
+-  const [actionLogError, setActionLogError] = useState<string | null>(null);
+-
+   const [tasks, setTasks] = useState<ProcessTask[]>([]);
+   const [isTasksLoading, setIsTasksLoading] = useState(true);
+   const [isTaskSaving, setIsTaskSaving] = useState(false);
+   const [taskError, setTaskError] = useState<string | null>(null);
+   const memoSaveTimers = useRef(new Map<string, number>());
+ 
+-  const fetchActionLogs = useCallback(
+-    async (signal?: AbortSignal) => {
+-      setIsActionLogsLoading(true);
+-      setActionLogError(null);
+-
+-      try {
+-        const response = await fetch(
+-          `/api/daily-action-logs/by-date?date=${encodeURIComponent(viewDate)}`,
+-          {
+-            cache: "no-store",
+-            signal,
+-          },
+-        );
+-
+-        if (!response.ok) {
+-          throw new Error("조치 일지를 불러오지 못했습니다.");
+-        }
+-
+-        const data = (await response.json()) as DailyActionLogItem[];
+-        setActionLogs(Array.isArray(data) ? data : []);
+-      } catch (error) {
+-        if (error instanceof DOMException && error.name === "AbortError") {
+-          return;
+-        }
+-
+-        console.error("조치 일지 조회 실패:", error);
+-        setActionLogs([]);
+-        setActionLogError("조치 일지를 불러오지 못했습니다.");
+-      } finally {
+-        if (!signal?.aborted) {
+-          setIsActionLogsLoading(false);
+-        }
+-      }
+-    },
+-    [viewDate],
+-  );
+-
+-  useEffect(() => {
+-    const controller = new AbortController();
+-
+-    const requestTimer = window.setTimeout(() => {
+-      void fetchActionLogs(controller.signal);
+-    }, 0);
+-
+-    return () => {
+-      window.clearTimeout(requestTimer);
+-      controller.abort();
+-    };
+-  }, [fetchActionLogs]);
+-
+   const fetchTasks = useCallback(
+     async (signal?: AbortSignal) => {
+       setIsTasksLoading(true);
+@@ -134,66 +77,6 @@ export default function Dashboard() {
+     };
+   }, []);
+ 
+-  async function addActionLog(actionLog: DailyActionLogDraft) {
+-    setIsActionLogSaving(true);
+-    setActionLogError(null);
+-
+-    try {
+-      const response = await fetch("/api/daily-action-logs", {
+-        method: "POST",
+-        headers: {
+-          "Content-Type": "application/json",
+-        },
+-        body: JSON.stringify({
+-          date: viewDate,
+-          ...actionLog,
+-        }),
+-      });
+-
+-      if (!response.ok) {
+-        throw new Error("조치 기록을 저장하지 못했습니다.");
+-      }
+-
+-      const createdLog = (await response.json()) as DailyActionLogItem;
+-      setActionLogs((currentActionLogs) =>
+-        [createdLog, ...currentActionLogs].sort((first, second) =>
+-          second.time.localeCompare(first.time),
+-        ),
+-      );
+-
+-      return true;
+-    } catch (error) {
+-      console.error("조치 기록 저장 실패:", error);
+-      setActionLogError("조치 기록을 저장하지 못했습니다.");
+-
+-      return false;
+-    } finally {
+-      setIsActionLogSaving(false);
+-    }
+-  }
+-
+-  async function deleteActionLog(actionLogId: string) {
+-    setActionLogError(null);
+-
+-    try {
+-      const response = await fetch(
+-        `/api/daily-action-logs/${actionLogId}?date=${encodeURIComponent(viewDate)}`,
+-        { method: "DELETE" },
+-      );
+-
+-      if (!response.ok) {
+-        throw new Error("조치 기록을 삭제하지 못했습니다.");
+-      }
+-
+-      setActionLogs((currentActionLogs) =>
+-        currentActionLogs.filter((actionLog) => actionLog.id !== actionLogId),
+-      );
+-    } catch (error) {
+-      console.error("조치 기록 삭제 실패:", error);
+-      setActionLogError("조치 기록을 삭제하지 못했습니다.");
+-    }
+-  }
+-
+   async function addTask(taskDraft: ProcessTaskDraft) {
+     setIsTaskSaving(true);
+     setTaskError(null);
+@@ -310,15 +193,7 @@ export default function Dashboard() {
+ 
+   return (
+     <div className="mx-auto grid w-full max-w-[1800px] grid-cols-1 gap-3 items-start md:grid-cols-[minmax(320px,1fr)_minmax(0,2fr)]">
+-      <DailyActionLog
+-        viewDate={viewDate}
+-        actionLogs={actionLogs}
+-        isLoading={isActionLogsLoading}
+-        isSaving={isActionLogSaving}
+-        errorMessage={actionLogError}
+-        onAddActionLog={addActionLog}
+-        onDeleteActionLog={deleteActionLog}
+-      />
++      <WorkSearchPanel />
+ 
+       <ProcessTaskList
+         tasks={tasks}
+diff --git a/components/dashboard/ProcessTaskCard.tsx b/components/dashboard/ProcessTaskCard.tsx
+index 8d31e84..e1e5390 100644
+--- a/components/dashboard/ProcessTaskCard.tsx
++++ b/components/dashboard/ProcessTaskCard.tsx
+@@ -14,6 +14,7 @@ type ProcessTaskCardProps = {
+   task: ProcessTask;
+   pendingStatus: WorkStatus;
+   isExpanded: boolean;
++  highlightQuery?: string;
+   onToggle: () => void;
+   onUpdateMemo: (memo: string) => void;
+   onPendingStatusChange: (status: WorkStatus) => void;
+@@ -24,6 +25,7 @@ export default function ProcessTaskCard({
+   task,
+   pendingStatus,
+   isExpanded,
++  highlightQuery = "",
+   onToggle,
+   onUpdateMemo,
+   onPendingStatusChange,
+@@ -31,12 +33,27 @@ export default function ProcessTaskCard({
+ }: ProcessTaskCardProps) {
+   const isOnHold = pendingStatus === "ON_HOLD";
+ 
++  const highlightText = (text: string) => {
++    const query = highlightQuery.trim();
++    if (!query) return text;
++    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++    const parts = text.split(new RegExp(`(${escapedQuery})`, "gi"));
++
++    return parts.map((part, index) =>
++      part.toLocaleLowerCase("ko-KR") === query.toLocaleLowerCase("ko-KR") ? (
++        <mark key={index} className="search-highlight">{part}</mark>
++      ) : part,
++    );
++  };
++
+   return (
+     <article
+       className={[
+         "overflow-hidden rounded-xl",
+         "border border-slate-200/70",
+-        isExpanded
++        highlightQuery
++          ? "border-yellow-300 ring-2 ring-yellow-200/80 shadow-[0_5px_16px_rgba(234,179,8,0.14)]"
++          : isExpanded
+           ? [
+               "border-slate-300/80",
+               "ring-1 ring-slate-200/60",
+@@ -70,7 +87,7 @@ export default function ProcessTaskCard({
+         </span>
+ 
+         <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-800">
+-          {task.title}
++          {highlightText(task.title)}
+         </span>
+ 
+         <span
+@@ -101,6 +118,12 @@ export default function ProcessTaskCard({
+                 메모
+               </p>
+ 
++              {highlightQuery && task.memo.toLocaleLowerCase("ko-KR").includes(highlightQuery.toLocaleLowerCase("ko-KR")) && (
++                <div className="mb-2 max-h-28 overflow-y-auto whitespace-pre-wrap rounded-lg border border-yellow-200 bg-yellow-50/70 px-3 py-2 text-[13px] leading-5 text-slate-700">
++                  {highlightText(task.memo)}
++                </div>
++              )}
++
+               <textarea
+                 value={task.memo}
+                 onChange={(event) => onUpdateMemo(event.target.value)}
+diff --git a/components/dashboard/ProcessTaskList.tsx b/components/dashboard/ProcessTaskList.tsx
+index 96cf239..e1c77c1 100644
+--- a/components/dashboard/ProcessTaskList.tsx
++++ b/components/dashboard/ProcessTaskList.tsx
+@@ -2,7 +2,13 @@
+ 
+ "use client";
+ 
+-import { useMemo, useState } from "react";
++import { useEffect, useMemo, useState } from "react";
++
++import {
++  WORKSPACE_SEARCH_CLEAR_EVENT,
++  WORKSPACE_SEARCH_SELECT_EVENT,
++  type SearchSelection,
++} from "@/components/search/search.types";
+ 
+ import ProcessTaskCard from "./ProcessTaskCard";
+ import ProcessTaskModal from "./ProcessTaskModal";
+@@ -47,6 +53,33 @@ export default function ProcessTaskList({
+   const [deleteTarget, setDeleteTarget] = useState<ProcessTask | null>(null);
+ 
+   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
++  const [searchTarget, setSearchTarget] = useState<{ id: string; query: string } | null>(null);
++
++  useEffect(() => {
++    const handleSelection = (event: Event) => {
++      const selection = (event as CustomEvent<SearchSelection>).detail;
++      if (selection.type !== "TASK") return;
++      setSearchTarget({ id: selection.id, query: selection.query });
++    };
++    const handleClear = () => setSearchTarget(null);
++
++    window.addEventListener(WORKSPACE_SEARCH_SELECT_EVENT, handleSelection);
++    window.addEventListener(WORKSPACE_SEARCH_CLEAR_EVENT, handleClear);
++    return () => {
++      window.removeEventListener(WORKSPACE_SEARCH_SELECT_EVENT, handleSelection);
++      window.removeEventListener(WORKSPACE_SEARCH_CLEAR_EVENT, handleClear);
++    };
++  }, []);
++
++  useEffect(() => {
++    if (!searchTarget || !tasks.some((task) => task.id === searchTarget.id)) return;
++    const targetId = searchTarget.id;
++    window.requestAnimationFrame(() => {
++      setExpandedTaskId(targetId);
++      document.querySelector(`[data-process-task-id="${CSS.escape(targetId)}"]`)
++        ?.scrollIntoView({ behavior: "smooth", block: "center" });
++    });
++  }, [searchTarget, tasks]);
+ 
+   const sortedTasks = useMemo(() => {
+     return [...tasks].sort((a, b) => {
+@@ -154,18 +187,20 @@ export default function ProcessTaskList({
+         ) : tasks.length > 0 ? (
+           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-soft">
+             {sortedTasks.map((task) => (
+-              <ProcessTaskCard
+-                key={task.id}
+-                task={task}
+-                pendingStatus={pendingStatuses[task.id] ?? task.status}
+-                isExpanded={expandedTaskId === task.id}
+-                onToggle={() => toggleTask(task.id)}
+-                onUpdateMemo={(memo) => onUpdateTaskMemo(task.id, memo)}
+-                onPendingStatusChange={(status) =>
+-                  updatePendingStatus(task.id, status)
+-                }
+-                onDelete={() => setDeleteTarget(task)}
+-              />
++              <div key={task.id} data-process-task-id={task.id}>
++                <ProcessTaskCard
++                  task={task}
++                  pendingStatus={pendingStatuses[task.id] ?? task.status}
++                  isExpanded={expandedTaskId === task.id}
++                  highlightQuery={searchTarget?.id === task.id ? searchTarget.query : ""}
++                  onToggle={() => toggleTask(task.id)}
++                  onUpdateMemo={(memo) => onUpdateTaskMemo(task.id, memo)}
++                  onPendingStatusChange={(status) =>
++                    updatePendingStatus(task.id, status)
++                  }
++                  onDelete={() => setDeleteTarget(task)}
++                />
++              </div>
+             ))}
+           </div>
+         ) : (
+diff --git a/components/search/WorkSearchPanel.tsx b/components/search/WorkSearchPanel.tsx
+new file mode 100644
+index 0000000..16637ba
+--- /dev/null
++++ b/components/search/WorkSearchPanel.tsx
+@@ -0,0 +1,158 @@
++"use client";
++
++import { useEffect, useState } from "react";
++
++import { useWorkspaceDate } from "@/components/workspace/WorkspaceDateProvider";
++
++import {
++  WORKSPACE_SEARCH_CLEAR_EVENT,
++  WORKSPACE_SEARCH_SELECT_EVENT,
++  type SearchResult,
++  type SearchSelection,
++} from "./search.types";
++
++function HighlightText({ text, query }: { text: string; query: string }) {
++  const trimmedQuery = query.trim();
++  if (!trimmedQuery) return text;
++
++  const escapedQuery = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++  const parts = text.split(new RegExp(`(${escapedQuery})`, "gi"));
++
++  return parts.map((part, index) =>
++    part.toLocaleLowerCase("ko-KR") === trimmedQuery.toLocaleLowerCase("ko-KR") ? (
++      <mark key={index} className="search-highlight">{part}</mark>
++    ) : part,
++  );
++}
++
++export default function WorkSearchPanel() {
++  const { setViewDate } = useWorkspaceDate();
++  const [query, setQuery] = useState("");
++  const [results, setResults] = useState<SearchResult[]>([]);
++  const [isLoading, setIsLoading] = useState(false);
++  const [errorMessage, setErrorMessage] = useState<string | null>(null);
++  const [selectedKey, setSelectedKey] = useState<string | null>(null);
++
++  useEffect(() => {
++    const trimmedQuery = query.trim();
++    if (!trimmedQuery) return;
++
++    const controller = new AbortController();
++    const timer = window.setTimeout(async () => {
++      setIsLoading(true);
++      setErrorMessage(null);
++      try {
++        const response = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`, {
++          cache: "no-store",
++          signal: controller.signal,
++        });
++        if (!response.ok) throw new Error("검색 결과를 불러오지 못했습니다.");
++        const data = (await response.json()) as SearchResult[];
++        setResults(Array.isArray(data) ? data : []);
++      } catch (error) {
++        if (error instanceof DOMException && error.name === "AbortError") return;
++        console.error("통합 검색 실패:", error);
++        setResults([]);
++        setErrorMessage("검색 결과를 불러오지 못했습니다.");
++      } finally {
++        if (!controller.signal.aborted) setIsLoading(false);
++      }
++    }, 220);
++
++    return () => {
++      window.clearTimeout(timer);
++      controller.abort();
++    };
++  }, [query]);
++
++  const handleQueryChange = (value: string) => {
++    setQuery(value);
++    setSelectedKey(null);
++    window.dispatchEvent(new Event(WORKSPACE_SEARCH_CLEAR_EVENT));
++    if (!value.trim()) {
++      setResults([]);
++      setErrorMessage(null);
++      setIsLoading(false);
++    }
++  };
++
++  const selectResult = (result: SearchResult) => {
++    const selection: SearchSelection = {
++      id: result.id,
++      type: result.type,
++      date: result.date,
++      query: query.trim(),
++    };
++
++    setSelectedKey(`${result.type}-${result.id}`);
++    setViewDate(result.date);
++    window.dispatchEvent(
++      new CustomEvent<SearchSelection>(WORKSPACE_SEARCH_SELECT_EVENT, { detail: selection }),
++    );
++  };
++
++  return (
++    <section className="flex min-h-[620px] min-w-0 flex-col rounded-[12px] p-4 card-shadow card-paper-background">
++      <header className="mb-4 shrink-0">
++        <h2 className="text-[15px] font-bold tracking-[-0.02em] text-slate-800">통합 검색</h2>
++        <p className="mt-0.5 text-[14px] text-slate-400">진행업무와 스티커노트를 한 번에 찾습니다.</p>
++      </header>
++
++      <div className="relative shrink-0">
++        <svg viewBox="0 0 20 20" fill="none" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true">
++          <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.7" />
++          <path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
++        </svg>
++        <input
++          type="search"
++          value={query}
++          onChange={(event) => handleQueryChange(event.target.value)}
++          placeholder="검색어를 입력하세요"
++          aria-label="진행업무와 스티커노트 검색"
++          autoComplete="off"
++          className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-9 text-[13px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-400/10"
++        />
++        {query && (
++          <button type="button" onClick={() => handleQueryChange("")} aria-label="검색어 지우기" className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">×</button>
++        )}
++      </div>
++
++      <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-soft" aria-live="polite">
++        {!query.trim() ? (
++          <div className="flex h-full min-h-80 items-center justify-center px-5 text-center">
++            <p className="text-[13px] leading-6 text-slate-400">업무 제목·메모와<br />스티커 제목·내용을 검색할 수 있습니다.</p>
++          </div>
++        ) : isLoading ? (
++          <div className="flex h-full min-h-80 items-center justify-center"><p className="text-[13px] text-slate-400">검색 중입니다.</p></div>
++        ) : errorMessage ? (
++          <div className="flex h-full min-h-80 items-center justify-center"><p className="text-[13px] font-medium text-red-600">{errorMessage}</p></div>
++        ) : results.length === 0 ? (
++          <div className="flex h-full min-h-80 items-center justify-center"><p className="text-[13px] text-slate-400">일치하는 결과가 없습니다.</p></div>
++        ) : (
++          <div className="space-y-2">
++            <p className="px-1 text-[11px] font-medium text-slate-400">{results.length}개의 검색 결과</p>
++            {results.map((result) => {
++              const key = `${result.type}-${result.id}`;
++              const isSelected = selectedKey === key;
++              return (
++                <button
++                  key={key}
++                  type="button"
++                  onClick={() => selectResult(result)}
++                  className={`w-full rounded-xl border p-3 text-left transition ${isSelected ? "border-yellow-300 bg-yellow-50 shadow-[0_2px_8px_rgba(234,179,8,0.12)]" : "border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50"}`}
++                >
++                  <span className="flex items-start gap-2">
++                    <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${result.type === "TASK" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700"}`}>{result.type === "TASK" ? "업무" : "스티커"}</span>
++                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-800"><HighlightText text={result.title} query={query} /></span>
++                  </span>
++                  {result.snippet && <span className="mt-2 line-clamp-2 block text-[12px] leading-5 text-slate-500"><HighlightText text={result.snippet} query={query} /></span>}
++                  <span className="mt-2 flex items-center justify-between text-[10px] text-slate-400"><span>{result.meta}</span><span>{result.date}</span></span>
++                </button>
++              );
++            })}
++          </div>
++        )}
++      </div>
++    </section>
++  );
++}
+diff --git a/components/search/search.types.ts b/components/search/search.types.ts
+new file mode 100644
+index 0000000..b7fd148
+--- /dev/null
++++ b/components/search/search.types.ts
+@@ -0,0 +1,18 @@
++export const WORKSPACE_SEARCH_SELECT_EVENT = "workspace-search-select";
++export const WORKSPACE_SEARCH_CLEAR_EVENT = "workspace-search-clear";
++
++export type SearchResultType = "TASK" | "NOTE";
++
++export type SearchResult = {
++  id: string;
++  type: SearchResultType;
++  title: string;
++  snippet: string;
++  date: string;
++  meta: string;
++  matchedField: "TITLE" | "CONTENT";
++};
++
++export type SearchSelection = Pick<SearchResult, "id" | "type" | "date"> & {
++  query: string;
++};
+diff --git a/components/sticky-note/StickyNoteBody.tsx b/components/sticky-note/StickyNoteBody.tsx
+index 28cd41f..8378f11 100644
+--- a/components/sticky-note/StickyNoteBody.tsx
++++ b/components/sticky-note/StickyNoteBody.tsx
+@@ -24,6 +24,7 @@ export type StickyNoteBodyHandle = {
+ type StickyNoteBodyProps = {
+   ref?: Ref<StickyNoteBodyHandle>;
+   content: string;
++  highlightQuery?: string;
+   onContentChange: (content: string) => void;
+ };
+ 
+@@ -82,9 +83,11 @@ function sanitizeEditorHtml(html: string) {
+ export default function StickyNoteBody({
+   ref,
+   content,
++  highlightQuery = "",
+   onContentChange,
+ }: StickyNoteBodyProps) {
+   const editorRef = useRef<HTMLDivElement>(null);
++  const appliedHighlightQueryRef = useRef("");
+ 
+   const syncContent = () => {
+     const editor = editorRef.current;
+@@ -119,10 +122,57 @@ export default function StickyNoteBody({
+ 
+     const sanitizedContent = sanitizeEditorHtml(content);
+ 
+-    if (editor.innerHTML !== sanitizedContent) {
+-      editor.innerHTML = sanitizedContent;
++    const query = highlightQuery.trim();
++    if (!query) {
++      appliedHighlightQueryRef.current = "";
++      if (editor.innerHTML !== sanitizedContent) editor.innerHTML = sanitizedContent;
++      return;
++    }
++
++    if (
++      appliedHighlightQueryRef.current === query &&
++      editor.querySelector("mark[data-search-highlight]")
++    ) {
++      return;
+     }
+-  }, [content]);
++
++    editor.innerHTML = sanitizedContent;
++    appliedHighlightQueryRef.current = query;
++
++    const textNodes: Text[] = [];
++    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
++    let currentNode = walker.nextNode();
++    while (currentNode) {
++      textNodes.push(currentNode as Text);
++      currentNode = walker.nextNode();
++    }
++
++    const lowerQuery = query.toLocaleLowerCase("ko-KR");
++    textNodes.forEach((textNode) => {
++      const text = textNode.data;
++      const lowerText = text.toLocaleLowerCase("ko-KR");
++      let cursor = 0;
++      let matchIndex = lowerText.indexOf(lowerQuery, cursor);
++      if (matchIndex < 0) return;
++
++      const fragment = document.createDocumentFragment();
++      while (matchIndex >= 0) {
++        fragment.append(text.slice(cursor, matchIndex));
++        const mark = document.createElement("mark");
++        mark.dataset.searchHighlight = "true";
++        mark.className = "search-highlight";
++        mark.textContent = text.slice(matchIndex, matchIndex + query.length);
++        fragment.append(mark);
++        cursor = matchIndex + query.length;
++        matchIndex = lowerText.indexOf(lowerQuery, cursor);
++      }
++      fragment.append(text.slice(cursor));
++      textNode.replaceWith(fragment);
++    });
++
++    editor.querySelector<HTMLElement>("mark[data-search-highlight]")
++      ?.scrollIntoView({ behavior: "smooth", block: "center" });
++  }, [content, highlightQuery]);
+ 
+   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+     if (!event.ctrlKey && !event.metaKey) {
+diff --git a/components/sticky-note/StickyNoteCard.tsx b/components/sticky-note/StickyNoteCard.tsx
+index 223f9e0..2f551d4 100644
+--- a/components/sticky-note/StickyNoteCard.tsx
++++ b/components/sticky-note/StickyNoteCard.tsx
+@@ -45,6 +45,7 @@ export default function StickyNoteCard({
+   note,
+   index,
+   viewDate,
++  highlightQuery = "",
+   onCollapse,
+   onExpand,
+   onDeleteRequest,
+@@ -864,6 +865,7 @@ export default function StickyNoteCard({
+               <StickyNoteBody
+                 ref={bodyRef}
+                 content={draftContent}
++                highlightQuery={highlightQuery}
+                 onContentChange={setDraftContent}
+               />
+             </div>
+diff --git a/components/sticky-note/sticky-note.types.ts b/components/sticky-note/sticky-note.types.ts
+index cc34658..6567412 100644
+--- a/components/sticky-note/sticky-note.types.ts
++++ b/components/sticky-note/sticky-note.types.ts
+@@ -58,6 +58,7 @@ export type StickyNoteCardProps = {
+   note: StickyNote;
+   index: number;
+   viewDate: string;
++  highlightQuery?: string;
+   onCollapse: (id: string) => void;
+   onExpand: (id: string) => void;
+   onDeleteRequest: (id: string) => void;
+diff --git a/components/workspace/WorkspaceLayer.tsx b/components/workspace/WorkspaceLayer.tsx
+index cb24777..67c9230 100644
+--- a/components/workspace/WorkspaceLayer.tsx
++++ b/components/workspace/WorkspaceLayer.tsx
+@@ -5,6 +5,11 @@
+ import { useCallback, useEffect, useMemo, useState } from "react";
+ 
+ import ConfirmDialog from "@/components/common/ConfirmDialog";
++import {
++  WORKSPACE_SEARCH_CLEAR_EVENT,
++  WORKSPACE_SEARCH_SELECT_EVENT,
++  type SearchSelection,
++} from "@/components/search/search.types";
+ import { AppDayPicker } from "@/components/day-picker";
+ import type {
+   Holiday,
+@@ -125,6 +130,7 @@ export default function WorkspaceLayer({
+   >([]);
+ 
+   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
++  const [searchTarget, setSearchTarget] = useState<{ id: string; query: string } | null>(null);
+ 
+   const [isLoading, setIsLoading] = useState(false);
+   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
+@@ -853,6 +859,28 @@ export default function WorkspaceLayer({
+     }
+   };
+ 
++  useEffect(() => {
++    const handleSelection = (event: Event) => {
++      const selection = (event as CustomEvent<SearchSelection>).detail;
++      if (selection.type !== "NOTE") return;
++      setSearchTarget({ id: selection.id, query: selection.query });
++    };
++    const handleClear = () => setSearchTarget(null);
++
++    window.addEventListener(WORKSPACE_SEARCH_SELECT_EVENT, handleSelection);
++    window.addEventListener(WORKSPACE_SEARCH_CLEAR_EVENT, handleClear);
++    return () => {
++      window.removeEventListener(WORKSPACE_SEARCH_SELECT_EVENT, handleSelection);
++      window.removeEventListener(WORKSPACE_SEARCH_CLEAR_EVENT, handleClear);
++    };
++  }, []);
++
++  useEffect(() => {
++    if (!searchTarget || !notes.some((note) => note.id === searchTarget.id)) return;
++    const targetId = searchTarget.id;
++    window.requestAnimationFrame(() => void handleExpand(targetId));
++  }, [notes, searchTarget]);
++
+   const handleDeleteRequest = (id: string) => {
+     setDeleteTargetId(id);
+   };
+@@ -1319,6 +1347,7 @@ export default function WorkspaceLayer({
+             note={note}
+             index={index}
+             viewDate={viewDate}
++            highlightQuery={searchTarget?.id === note.id ? searchTarget.query : ""}
+             onCollapse={handleCollapse}
+             onExpand={handleExpand}
+             onDeleteRequest={handleDeleteRequest}
+diff --git a/lib/process-task-file-store.ts b/lib/process-task-file-store.ts
+index a109d62..9d361f2 100644
+--- a/lib/process-task-file-store.ts
++++ b/lib/process-task-file-store.ts
+@@ -158,6 +158,15 @@ export async function readProcessTasksByDate(viewDate: string) {
+   return tasks.filter((task): task is ProcessTask => task !== null);
+ }
+ 
++export async function readAllProcessTasks() {
++  const indexItems = await readIndex();
++  const tasks = await Promise.all(
++    indexItems.map((item) => readProcessTaskById(item.id)),
++  );
++
++  return tasks.filter((task): task is ProcessTask => task !== null);
++}
++
+ export async function createProcessTask(
+   draft: ProcessTaskDraft,
+   createdDate: string,
+diff --git a/lib/sticky-note-file-store.ts b/lib/sticky-note-file-store.ts
+index 92ce965..8a82348 100644
+--- a/lib/sticky-note-file-store.ts
++++ b/lib/sticky-note-file-store.ts
+@@ -1,6 +1,6 @@
+ // lib/sticky-note-file-store.ts
+ 
+-import { mkdir, readFile, readdir, unlink, writeFile } from "fs/promises";
++import { mkdir, readFile, readdir, rename, unlink, writeFile } from "fs/promises";
+ import path from "path";
+ 
+ import type {
+@@ -12,13 +12,39 @@ const ROOT_DIR = path.join(process.cwd(), "data", "sticky-notes");
+ const NOTES_DIR = path.join(ROOT_DIR, "notes");
+ const INDEX_FILE_PATH = path.join(ROOT_DIR, "index.json");
+ 
++async function writeJsonAtomically(filePath: string, value: unknown) {
++  const temporaryPath = `${filePath}.${crypto.randomUUID()}.tmp`;
++  await writeFile(temporaryPath, JSON.stringify(value, null, 2), "utf-8");
++  await rename(temporaryPath, filePath);
++}
++
++async function rebuildIndexFromNoteFiles() {
++  const files = await readdir(NOTES_DIR);
++  const notes = await Promise.all(
++    files
++      .filter((file) => file.endsWith(".json"))
++      .map(async (file) => {
++        const content = await readFile(path.join(NOTES_DIR, file), "utf-8");
++        return JSON.parse(content) as StickyNote;
++      }),
++  );
++  const indexItems = notes.map(toIndexItem);
++
++  await writeJsonAtomically(INDEX_FILE_PATH, indexItems);
++  return indexItems;
++}
++
+ async function ensureStore() {
+   await mkdir(NOTES_DIR, { recursive: true });
+ 
+   try {
+     await readFile(INDEX_FILE_PATH, "utf-8");
+-  } catch {
+-    await writeFile(INDEX_FILE_PATH, JSON.stringify([], null, 2), "utf-8");
++  } catch (error) {
++    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
++      throw error;
++    }
++
++    await rebuildIndexFromNoteFiles();
+   }
+ }
+ 
+@@ -106,8 +132,9 @@ async function readIndex(): Promise<StickyNoteIndexItem[]> {
+ 
+   try {
+     return JSON.parse(content) as StickyNoteIndexItem[];
+-  } catch {
+-    return [];
++  } catch (error) {
++    console.error("스티커 인덱스가 손상되어 노트 파일에서 복구합니다:", error);
++    return rebuildIndexFromNoteFiles();
+   }
+ }
+ 
+@@ -133,11 +160,7 @@ async function cleanOrphanedIndexItems() {
+ async function writeIndex(indexItems: StickyNoteIndexItem[]) {
+   await ensureStore();
+ 
+-  await writeFile(
+-    INDEX_FILE_PATH,
+-    JSON.stringify(indexItems, null, 2),
+-    "utf-8",
+-  );
++  await writeJsonAtomically(INDEX_FILE_PATH, indexItems);
+ }
+ 
+ async function upsertIndexItem(note: StickyNote) {

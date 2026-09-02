@@ -2,7 +2,13 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  WORKSPACE_SEARCH_CLEAR_EVENT,
+  WORKSPACE_SEARCH_SELECT_EVENT,
+  type SearchSelection,
+} from "@/components/search/search.types";
 
 import ProcessTaskCard from "./ProcessTaskCard";
 import ProcessTaskModal from "./ProcessTaskModal";
@@ -47,6 +53,33 @@ export default function ProcessTaskList({
   const [deleteTarget, setDeleteTarget] = useState<ProcessTask | null>(null);
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [searchTarget, setSearchTarget] = useState<{ id: string; query: string } | null>(null);
+
+  useEffect(() => {
+    const handleSelection = (event: Event) => {
+      const selection = (event as CustomEvent<SearchSelection>).detail;
+      if (selection.type !== "TASK") return;
+      setSearchTarget({ id: selection.id, query: selection.query });
+    };
+    const handleClear = () => setSearchTarget(null);
+
+    window.addEventListener(WORKSPACE_SEARCH_SELECT_EVENT, handleSelection);
+    window.addEventListener(WORKSPACE_SEARCH_CLEAR_EVENT, handleClear);
+    return () => {
+      window.removeEventListener(WORKSPACE_SEARCH_SELECT_EVENT, handleSelection);
+      window.removeEventListener(WORKSPACE_SEARCH_CLEAR_EVENT, handleClear);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!searchTarget || !tasks.some((task) => task.id === searchTarget.id)) return;
+    const targetId = searchTarget.id;
+    window.requestAnimationFrame(() => {
+      setExpandedTaskId(targetId);
+      document.querySelector(`[data-process-task-id="${CSS.escape(targetId)}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [searchTarget, tasks]);
 
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
@@ -154,18 +187,20 @@ export default function ProcessTaskList({
         ) : tasks.length > 0 ? (
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-soft">
             {sortedTasks.map((task) => (
-              <ProcessTaskCard
-                key={task.id}
-                task={task}
-                pendingStatus={pendingStatuses[task.id] ?? task.status}
-                isExpanded={expandedTaskId === task.id}
-                onToggle={() => toggleTask(task.id)}
-                onUpdateMemo={(memo) => onUpdateTaskMemo(task.id, memo)}
-                onPendingStatusChange={(status) =>
-                  updatePendingStatus(task.id, status)
-                }
-                onDelete={() => setDeleteTarget(task)}
-              />
+              <div key={task.id} data-process-task-id={task.id}>
+                <ProcessTaskCard
+                  task={task}
+                  pendingStatus={pendingStatuses[task.id] ?? task.status}
+                  isExpanded={expandedTaskId === task.id}
+                  highlightQuery={searchTarget?.id === task.id ? searchTarget.query : ""}
+                  onToggle={() => toggleTask(task.id)}
+                  onUpdateMemo={(memo) => onUpdateTaskMemo(task.id, memo)}
+                  onPendingStatusChange={(status) =>
+                    updatePendingStatus(task.id, status)
+                  }
+                  onDelete={() => setDeleteTarget(task)}
+                />
+              </div>
             ))}
           </div>
         ) : (

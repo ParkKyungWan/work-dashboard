@@ -14,6 +14,7 @@ type ProcessTaskCardProps = {
   task: ProcessTask;
   pendingStatus: WorkStatus;
   isExpanded: boolean;
+  highlightQuery?: string;
   onToggle: () => void;
   onUpdateMemo: (memo: string) => void;
   onPendingStatusChange: (status: WorkStatus) => void;
@@ -24,6 +25,7 @@ export default function ProcessTaskCard({
   task,
   pendingStatus,
   isExpanded,
+  highlightQuery = "",
   onToggle,
   onUpdateMemo,
   onPendingStatusChange,
@@ -31,12 +33,27 @@ export default function ProcessTaskCard({
 }: ProcessTaskCardProps) {
   const isOnHold = pendingStatus === "ON_HOLD";
 
+  const highlightText = (text: string) => {
+    const query = highlightQuery.trim();
+    if (!query) return text;
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const parts = text.split(new RegExp(`(${escapedQuery})`, "gi"));
+
+    return parts.map((part, index) =>
+      part.toLocaleLowerCase("ko-KR") === query.toLocaleLowerCase("ko-KR") ? (
+        <mark key={index} className="search-highlight">{part}</mark>
+      ) : part,
+    );
+  };
+
   return (
     <article
       className={[
         "overflow-hidden rounded-xl",
         "border border-slate-200/70",
-        isExpanded
+        highlightQuery
+          ? "border-yellow-300 ring-2 ring-yellow-200/80 shadow-[0_5px_16px_rgba(234,179,8,0.14)]"
+          : isExpanded
           ? [
               "border-slate-300/80",
               "ring-1 ring-slate-200/60",
@@ -70,7 +87,7 @@ export default function ProcessTaskCard({
         </span>
 
         <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-800">
-          {task.title}
+          {highlightText(task.title)}
         </span>
 
         <span
@@ -100,6 +117,12 @@ export default function ProcessTaskCard({
               <p className="mb-1.5 text-[14px] font-semibold text-slate-500">
                 메모
               </p>
+
+              {highlightQuery && task.memo.toLocaleLowerCase("ko-KR").includes(highlightQuery.toLocaleLowerCase("ko-KR")) && (
+                <div className="mb-2 max-h-28 overflow-y-auto whitespace-pre-wrap rounded-lg border border-yellow-200 bg-yellow-50/70 px-3 py-2 text-[13px] leading-5 text-slate-700">
+                  {highlightText(task.memo)}
+                </div>
+              )}
 
               <textarea
                 value={task.memo}

@@ -158,6 +158,15 @@ export async function readProcessTasksByDate(viewDate: string) {
   return tasks.filter((task): task is ProcessTask => task !== null);
 }
 
+export async function readAllProcessTasks() {
+  const indexItems = await readIndex();
+  const tasks = await Promise.all(
+    indexItems.map((item) => readProcessTaskById(item.id)),
+  );
+
+  return tasks.filter((task): task is ProcessTask => task !== null);
+}
+
 export async function createProcessTask(
   draft: ProcessTaskDraft,
   createdDate: string,

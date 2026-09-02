@@ -45,6 +45,7 @@ export default function StickyNoteCard({
   note,
   index,
   viewDate,
+  highlightQuery = "",
   onCollapse,
   onExpand,
   onDeleteRequest,
@@ -864,6 +865,7 @@ export default function StickyNoteCard({
               <StickyNoteBody
                 ref={bodyRef}
                 content={draftContent}
+                highlightQuery={highlightQuery}
                 onContentChange={setDraftContent}
               />
             </div>
