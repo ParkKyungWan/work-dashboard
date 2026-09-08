@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import type { WorkStatus } from "@/components/dashboard/dashboard.types";
-import { createProcessTask } from "@/lib/process-task-file-store";
+import {
+  createProcessTask,
+  readAllProcessTasks,
+} from "@/lib/process-task-file-store";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_STATUSES: WorkStatus[] = [
@@ -10,6 +13,10 @@ const VALID_STATUSES: WorkStatus[] = [
   "COMPLETED",
   "ON_HOLD",
 ];
+
+export async function GET() {
+  return NextResponse.json(await readAllProcessTasks());
+}
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {

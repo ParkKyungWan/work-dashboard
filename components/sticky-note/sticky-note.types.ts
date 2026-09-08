@@ -58,6 +58,7 @@ export type StickyNoteCardProps = {
   note: StickyNote;
   index: number;
   viewDate: string;
+  isHighlighted?: boolean;
   onCollapse: (id: string) => void;
   onExpand: (id: string) => void;
   onDeleteRequest: (id: string) => void;

@@ -125,6 +125,7 @@ export default function WorkspaceLayer({
   >([]);
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [highlightNoteId, setHighlightNoteId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
@@ -500,6 +501,53 @@ export default function WorkspaceLayer({
   }, [selectedYear]);
 
   useEffect(() => {
+    const handleJumpNote = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ noteId?: string; dateKey?: string }>
+      ).detail;
+
+      if (!detail?.noteId || !detail.dateKey) {
+        return;
+      }
+
+      setHighlightNoteId(detail.noteId);
+      setViewDate(detail.dateKey);
+
+      setNotes((previousNotes) =>
+        previousNotes.map((note) =>
+          note.id === detail.noteId
+            ? {
+                ...note,
+                collapsed: false,
+              }
+            : note,
+        ),
+      );
+    };
+
+    const handleClearSearchHighlights = () => {
+      setHighlightNoteId(null);
+    };
+
+    window.addEventListener("local-work-dashboard:jump-note", handleJumpNote);
+    window.addEventListener(
+      "local-work-dashboard:clear-search-highlights",
+      handleClearSearchHighlights,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "local-work-dashboard:jump-note",
+        handleJumpNote,
+      );
+      window.removeEventListener(
+        "local-work-dashboard:clear-search-highlights",
+        handleClearSearchHighlights,
+      );
+    };
+  }, [setViewDate]);
+
+  useEffect(() => {
     void fetchActiveNotes();
   }, [fetchActiveNotes]);
 
@@ -700,10 +748,13 @@ export default function WorkspaceLayer({
     const targetNotes = notes.filter((note) => !note.collapsed);
 
     if (targetNotes.length === 0) {
+      setHighlightNoteId(null);
       setIsMenuOpen(false);
 
       return;
     }
+
+    setHighlightNoteId(null);
 
     setNotes((previousNotes) =>
       previousNotes.map((note) => ({
@@ -789,6 +840,10 @@ export default function WorkspaceLayer({
       return;
     }
 
+    if (highlightNoteId === id) {
+      setHighlightNoteId(null);
+    }
+
     setNotes((previousNotes) =>
       previousNotes.map((note) =>
         note.id === id
@@ -852,6 +907,33 @@ export default function WorkspaceLayer({
       updateLocalNote(updatedNote);
     }
   };
+
+  useEffect(() => {
+    if (!highlightNoteId) {
+      return;
+    }
+
+    const targetNote = notes.find((note) => note.id === highlightNoteId);
+
+    if (!targetNote) {
+      return;
+    }
+
+    if (!targetNote.collapsed) {
+      return;
+    }
+
+    setNotes((previousNotes) =>
+      previousNotes.map((note) =>
+        note.id === targetNote.id
+          ? {
+              ...note,
+              collapsed: false,
+            }
+          : note,
+      ),
+    );
+  }, [highlightNoteId, notes]);
 
   const handleDeleteRequest = (id: string) => {
     setDeleteTargetId(id);
@@ -1319,6 +1401,7 @@ export default function WorkspaceLayer({
             note={note}
             index={index}
             viewDate={viewDate}
+            isHighlighted={highlightNoteId === note.id}
             onCollapse={handleCollapse}
             onExpand={handleExpand}
             onDeleteRequest={handleDeleteRequest}

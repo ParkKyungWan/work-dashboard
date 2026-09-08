@@ -1,4 +1,11 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "fs/promises";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  unlink,
+  writeFile,
+} from "fs/promises";
 import path from "path";
 
 import type {
@@ -9,12 +16,7 @@ import type {
 
 type ProcessTaskIndexItem = Pick<
   ProcessTask,
-  | "id"
-  | "status"
-  | "createdDate"
-  | "completedDate"
-  | "order"
-  | "createdAt"
+  "id" | "status" | "createdDate" | "completedDate" | "order" | "createdAt"
 >;
 
 type LegacyProcessTaskFile = {
@@ -64,7 +66,38 @@ function sortIndexItems(items: ProcessTaskIndexItem[]) {
   });
 }
 
+async function fileExists(filePath: string) {
+  try {
+    await readFile(filePath, "utf-8");
+    return true;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+async function backupExistingFile(filePath: string) {
+  try {
+    await rename(filePath, `${filePath}.${Date.now()}.bak`);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+}
+
 async function writeJsonAtomically(filePath: string, value: unknown) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+
+  if (await fileExists(filePath)) {
+    await backupExistingFile(filePath);
+  }
+
   const temporaryPath = `${filePath}.${crypto.randomUUID()}.tmp`;
 
   await writeFile(temporaryPath, JSON.stringify(value, null, 2), "utf-8");
@@ -105,9 +138,39 @@ async function ensureStore() {
 
   try {
     await readFile(INDEX_FILE_PATH, "utf-8");
-  } catch {
-    await migrateLegacyFile();
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      await migrateLegacyFile();
+      return;
+    }
+
+    throw error;
   }
+}
+
+async function rebuildIndexFromTaskFiles(): Promise<ProcessTaskIndexItem[]> {
+  const taskFiles = await readdir(TASKS_DIRECTORY).catch(() => []);
+  const jsonFiles = taskFiles.filter((file) => file.endsWith(".json"));
+
+  const tasks = await Promise.all(
+    jsonFiles.map(async (file) => {
+      const filePath = path.join(TASKS_DIRECTORY, file);
+      const content = await readFile(filePath, "utf-8");
+      const parsed = JSON.parse(content) as unknown;
+
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error(`업무 파일 형식이 올바르지 않습니다: ${file}`);
+      }
+
+      return parsed as ProcessTask;
+    }),
+  );
+
+  const nextIndex = sortIndexItems(tasks.map(toIndexItem));
+
+  await writeJsonAtomically(INDEX_FILE_PATH, nextIndex);
+
+  return nextIndex;
 }
 
 async function readIndex(): Promise<ProcessTaskIndexItem[]> {
@@ -117,13 +180,24 @@ async function readIndex(): Promise<ProcessTaskIndexItem[]> {
     const content = await readFile(INDEX_FILE_PATH, "utf-8");
     const parsed = JSON.parse(content) as unknown;
 
-    return Array.isArray(parsed)
-      ? sortIndexItems(parsed as ProcessTaskIndexItem[])
-      : [];
+    if (!Array.isArray(parsed)) {
+      throw new Error("진행 업무 인덱스 형식이 올바르지 않습니다.");
+    }
+
+    return sortIndexItems(parsed as ProcessTaskIndexItem[]);
   } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return await rebuildIndexFromTaskFiles();
+    }
+
     console.error("진행 업무 인덱스 읽기 실패:", error);
 
-    return [];
+    try {
+      await rename(INDEX_FILE_PATH, `${INDEX_FILE_PATH}.broken`);
+      return await rebuildIndexFromTaskFiles();
+    } catch {
+      throw error;
+    }
   }
 }
 
@@ -139,8 +213,12 @@ async function readProcessTaskById(id: string): Promise<ProcessTask | null> {
     const content = await readFile(createTaskFilePath(id), "utf-8");
 
     return JSON.parse(content) as ProcessTask;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return null;
+    }
+
+    throw error;
   }
 }
 
@@ -158,16 +236,33 @@ export async function readProcessTasksByDate(viewDate: string) {
   return tasks.filter((task): task is ProcessTask => task !== null);
 }
 
+export async function readAllProcessTasks() {
+  const indexItems = await readIndex();
+  const tasks = await Promise.all(
+    indexItems.map((item) => readProcessTaskById(item.id)),
+  );
+
+  return tasks
+    .filter((task): task is ProcessTask => task !== null)
+    .sort((first, second) => {
+      return (
+        new Date(second.createdAt).getTime() -
+        new Date(first.createdAt).getTime()
+      );
+    });
+}
+
 export async function createProcessTask(
   draft: ProcessTaskDraft,
   createdDate: string,
 ) {
   const indexItems = await readIndex();
   const now = new Date().toISOString();
-  const nextOrder = indexItems.reduce(
-    (highestOrder, item) => Math.max(highestOrder, item.order),
-    -1,
-  ) + 1;
+  const nextOrder =
+    indexItems.reduce(
+      (highestOrder, item) => Math.max(highestOrder, item.order),
+      -1,
+    ) + 1;
 
   const task: ProcessTask = {
     id: crypto.randomUUID(),

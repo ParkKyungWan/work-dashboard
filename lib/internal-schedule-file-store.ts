@@ -48,6 +48,18 @@ function sortSchedules(schedules: InternalSchedule[]): InternalSchedule[] {
   });
 }
 
+async function backupExistingFile(filePath: string) {
+  try {
+    await rename(filePath, `${filePath}.${Date.now()}.bak`);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+}
+
 async function writeScheduleFile(
   file: InternalScheduleFile,
 ): Promise<InternalScheduleFile> {
@@ -59,6 +71,14 @@ async function writeScheduleFile(
     updatedAt: new Date().toISOString(),
     schedules: sortSchedules(file.schedules),
   };
+
+  if (
+    await readFile(FILE_PATH, "utf-8")
+      .then(() => true)
+      .catch(() => false)
+  ) {
+    await backupExistingFile(FILE_PATH);
+  }
 
   await writeFile(
     TEMP_FILE_PATH,
@@ -78,8 +98,13 @@ async function ensureScheduleFile() {
 
   try {
     await readFile(FILE_PATH, "utf-8");
-  } catch {
-    await writeScheduleFile(EMPTY_FILE);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      await writeScheduleFile(EMPTY_FILE);
+      return;
+    }
+
+    throw error;
   }
 }
 
@@ -92,7 +117,7 @@ export async function readInternalScheduleFile(): Promise<InternalScheduleFile> 
     const parsed = JSON.parse(content) as InternalScheduleFile;
 
     if (!Array.isArray(parsed.schedules)) {
-      return EMPTY_FILE;
+      throw new Error("내부 일정 파일 형식이 올바르지 않습니다.");
     }
 
     let needsMigration = false;
@@ -125,8 +150,7 @@ export async function readInternalScheduleFile(): Promise<InternalScheduleFile> 
     return normalizedFile;
   } catch (error) {
     console.error("내부 일정 파일 읽기 실패:", error);
-
-    return EMPTY_FILE;
+    throw error;
   }
 }
 
@@ -208,4 +232,3 @@ export async function deleteInternalSchedule(id: string): Promise<boolean> {
 
   return true;
 }
-

@@ -45,6 +45,7 @@ export default function StickyNoteCard({
   note,
   index,
   viewDate,
+  isHighlighted = false,
   onCollapse,
   onExpand,
   onDeleteRequest,
@@ -798,6 +799,9 @@ export default function StickyNoteCard({
         height: isOpen ? heightRef.current : "auto",
         pointerEvents: "auto",
         transform: `translate3d(${initialPosition.x}px, ${initialPosition.y}px, 0)`,
+        boxShadow: isHighlighted
+          ? "0 0 0 3px rgba(250, 204, 21, 0.9), 0 0 24px rgba(250, 204, 21, 0.35)"
+          : undefined,
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -836,10 +840,12 @@ export default function StickyNoteCard({
 
       <div
         className="sticky-note-surface flex h-full flex-col overflow-hidden border border-neutral-900 shadow-lg"
-        style={{
-          "--sticky-note-color": postItColor,
-          backgroundColor: postItColor,
-        } as StickyNoteStyle}
+        style={
+          {
+            "--sticky-note-color": postItColor,
+            backgroundColor: postItColor,
+          } as StickyNoteStyle
+        }
       >
         <div
           onMouseDown={handleDragStart}
@@ -858,9 +864,7 @@ export default function StickyNoteCard({
 
         {isOpen && (
           <>
-            <div
-              className="sticky-note-surface min-h-0 flex-1"
-            >
+            <div className="sticky-note-surface min-h-0 flex-1">
               <StickyNoteBody
                 ref={bodyRef}
                 content={draftContent}

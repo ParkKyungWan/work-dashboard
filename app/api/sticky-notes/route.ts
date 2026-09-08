@@ -8,9 +8,18 @@ import {
 } from "@/lib/sticky-note-file-store";
 
 export async function GET() {
-  const notes = await readAllStickyNotes();
+  try {
+    const notes = await readAllStickyNotes();
 
-  return NextResponse.json(notes);
+    return NextResponse.json(notes);
+  } catch (error) {
+    console.error("스티커 목록 조회 실패:", error);
+
+    return NextResponse.json(
+      { message: "스티커 목록을 불러오지 못했습니다." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {

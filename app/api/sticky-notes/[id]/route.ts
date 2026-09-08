@@ -15,34 +15,52 @@ type RouteContext = {
 };
 
 export async function GET(_request: NextRequest, context: RouteContext) {
-  const { id } = await context.params;
+  try {
+    const { id } = await context.params;
 
-  const note = await readStickyNoteById(id);
+    const note = await readStickyNoteById(id);
 
-  if (!note) {
+    if (!note) {
+      return NextResponse.json(
+        { message: "스티커를 찾을 수 없습니다." },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(note);
+  } catch (error) {
+    console.error("스티커 단건 조회 실패:", error);
+
     return NextResponse.json(
-      { message: "스티커를 찾을 수 없습니다." },
-      { status: 404 },
+      { message: "스티커를 읽는 중 오류가 발생했습니다." },
+      { status: 500 },
     );
   }
-
-  return NextResponse.json(note);
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const { id } = await context.params;
-  const body = await request.json();
+  try {
+    const { id } = await context.params;
+    const body = await request.json();
 
-  const note = await updateStickyNote(id, body);
+    const note = await updateStickyNote(id, body);
 
-  if (!note) {
+    if (!note) {
+      return NextResponse.json(
+        { message: "스티커를 찾을 수 없습니다." },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(note);
+  } catch (error) {
+    console.error("스티커 수정 실패:", error);
+
     return NextResponse.json(
-      { message: "스티커를 찾을 수 없습니다." },
-      { status: 404 },
+      { message: "스티커를 저장하는 중 오류가 발생했습니다." },
+      { status: 500 },
     );
   }
-
-  return NextResponse.json(note);
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {

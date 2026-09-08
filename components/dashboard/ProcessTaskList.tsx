@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import ProcessTaskCard from "./ProcessTaskCard";
 import ProcessTaskModal from "./ProcessTaskModal";
@@ -18,6 +18,7 @@ type ProcessTaskListProps = {
   isLoading: boolean;
   isSaving: boolean;
   errorMessage: string | null;
+  highlightTaskId?: string | null;
   onAddTask: (taskDraft: ProcessTaskDraft) => Promise<boolean>;
   onUpdateTaskMemo: (taskId: string, memo: string) => void;
   onUpdateTaskStatus: (taskId: string, status: WorkStatus) => Promise<void>;
@@ -34,6 +35,7 @@ export default function ProcessTaskList({
   isLoading,
   isSaving,
   errorMessage,
+  highlightTaskId = null,
   onAddTask,
   onUpdateTaskMemo,
   onUpdateTaskStatus,
@@ -43,6 +45,22 @@ export default function ProcessTaskList({
   const [pendingStatuses, setPendingStatuses] = useState<
     Record<string, WorkStatus>
   >({});
+
+  useEffect(() => {
+    if (!highlightTaskId) {
+      return;
+    }
+
+    setExpandedTaskId(highlightTaskId);
+
+    const card = document.querySelector(
+      `[data-task-id="${CSS.escape(highlightTaskId)}"]`,
+    ) as HTMLElement | null;
+
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [highlightTaskId]);
 
   const [deleteTarget, setDeleteTarget] = useState<ProcessTask | null>(null);
 
@@ -159,6 +177,7 @@ export default function ProcessTaskList({
                 task={task}
                 pendingStatus={pendingStatuses[task.id] ?? task.status}
                 isExpanded={expandedTaskId === task.id}
+                isHighlighted={highlightTaskId === task.id}
                 onToggle={() => toggleTask(task.id)}
                 onUpdateMemo={(memo) => onUpdateTaskMemo(task.id, memo)}
                 onPendingStatusChange={(status) =>

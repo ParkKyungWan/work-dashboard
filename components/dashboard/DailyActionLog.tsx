@@ -1,238 +1,262 @@
-// components/dashboard/DailyActionLog.tsx
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { createLocalDateFromKey } from "@/components/day-picker/day-picker.utils";
+import type { StickyNote } from "@/components/sticky-note/sticky-note.types";
 
-import type {
-  DailyActionLogDraft,
-  DailyActionLogItem,
-} from "./dashboard.types";
-import { getCurrentTime } from "./dashboard.utils";
+import type { ProcessTask } from "./dashboard.types";
 
 type DailyActionLogProps = {
   viewDate: string;
-  actionLogs: DailyActionLogItem[];
-  isLoading: boolean;
-  isSaving: boolean;
-  errorMessage: string | null;
-  onAddActionLog: (actionLog: DailyActionLogDraft) => Promise<boolean>;
-  onDeleteActionLog: (actionLogId: string) => Promise<void>;
+  tasks: ProcessTask[];
+  notes: StickyNote[];
+  searchQuery: string;
+  onSearchQueryChange: (nextQuery: string) => void;
+  onOpenTaskResult: (task: ProcessTask) => void;
+  onOpenNoteResult: (note: StickyNote) => void;
+};
+
+type SearchResultItem = {
+  id: string;
+  label: string;
+  meta: string;
+  previewText: string;
+  previewSegments: Array<{ text: string; match: boolean }>;
+  type: "task" | "note";
+  payload: ProcessTask | StickyNote;
+};
+
+const normalizeSearchText = (value: string) => {
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const truncateText = (value: string, maxLength: number) => {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
+};
+
+const buildPreviewSegments = (
+  source: string,
+  query: string,
+  maxLength = 80,
+) => {
+  const normalizedSource = normalizeSearchText(source);
+  const normalizedQuery = query.trim();
+
+  if (!normalizedQuery) {
+    return [{ text: truncateText(normalizedSource, maxLength), match: false }];
+  }
+
+  const lowerSource = normalizedSource.toLowerCase();
+  const lowerQuery = normalizedQuery.toLowerCase();
+  const matchIndex = lowerSource.indexOf(lowerQuery);
+
+  if (matchIndex === -1) {
+    return [{ text: truncateText(normalizedSource, maxLength), match: false }];
+  }
+
+  const start = Math.max(0, matchIndex - 22);
+  const end = Math.min(normalizedSource.length, matchIndex + normalizedQuery.length + 22);
+  let snippet = normalizedSource.slice(start, end).trim();
+
+  if (start > 0) {
+    snippet = `…${snippet}`;
+  }
+
+  if (end < normalizedSource.length) {
+    snippet = `${snippet}…`;
+  }
+
+  const lowerSnippet = snippet.toLowerCase();
+  const snippetMatchIndex = lowerSnippet.indexOf(lowerQuery);
+
+  if (snippetMatchIndex === -1) {
+    return [{ text: truncateText(snippet, maxLength), match: false }];
+  }
+
+  const before = snippet.slice(0, snippetMatchIndex);
+  const matchText = snippet.slice(snippetMatchIndex, snippetMatchIndex + normalizedQuery.length);
+  const after = snippet.slice(snippetMatchIndex + normalizedQuery.length);
+
+  return [
+    { text: before || "", match: false },
+    { text: matchText, match: true },
+    { text: after || "", match: false },
+  ];
 };
 
 export default function DailyActionLog({
-  viewDate,
-  actionLogs,
-  isLoading,
-  isSaving,
-  errorMessage,
-  onAddActionLog,
-  onDeleteActionLog,
+  tasks,
+  notes,
+  searchQuery,
+  onSearchQueryChange,
+  onOpenTaskResult,
+  onOpenNoteResult,
 }: DailyActionLogProps) {
-  const [target, setTarget] = useState("");
-  const [description, setDescription] = useState("");
-  const [time, setTime] = useState(getCurrentTime);
-  const [isTimeEditing, setIsTimeEditing] = useState(false);
-  const [isTimeManuallySet, setIsTimeManuallySet] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
-  useEffect(() => {
-    if (isTimeManuallySet) {
-      return;
+  const results = useMemo<SearchResultItem[]>(() => {
+    const trimmedQuery = searchQuery.trim();
+
+    if (!trimmedQuery) {
+      return [];
     }
 
-    let minuteInterval: number | null = null;
-    const millisecondsUntilNextMinute = 60_000 - (Date.now() % 60_000) + 50;
+    const query = trimmedQuery.toLowerCase();
 
-    const minuteTimeout = window.setTimeout(() => {
-      setTime(getCurrentTime());
+    const taskResults: SearchResultItem[] = tasks
+      .filter((task) => {
+        const haystack = normalizeSearchText(`${task.title} ${task.memo}`);
+        return haystack.toLowerCase().includes(query);
+      })
+      .map((task) => {
+        const sourceText = `${task.title} ${task.memo}`;
+        const previewSegments = buildPreviewSegments(sourceText, trimmedQuery);
 
-      minuteInterval = window.setInterval(() => {
-        setTime(getCurrentTime());
-      }, 60_000);
-    }, millisecondsUntilNextMinute);
+        return {
+          id: task.id,
+          label: task.title,
+          meta: task.createdDate,
+          previewText: previewSegments.map((segment) => segment.text).join(""),
+          previewSegments,
+          type: "task",
+          payload: task,
+        };
+      });
 
-    return () => {
-      window.clearTimeout(minuteTimeout);
+    const noteResults: SearchResultItem[] = notes
+      .filter((note) => {
+        const haystack = normalizeSearchText(`${note.title} ${note.content}`);
+        return haystack.toLowerCase().includes(query);
+      })
+      .map((note) => {
+        const sourceText = `${note.title} ${normalizeSearchText(note.content)}`;
+        const previewSegments = buildPreviewSegments(sourceText, trimmedQuery);
 
-      if (minuteInterval !== null) {
-        window.clearInterval(minuteInterval);
-      }
-    };
-  }, [isTimeManuallySet]);
+        return {
+          id: note.id,
+          label: note.title || "스티커 메모",
+          meta: note.startDate,
+          previewText: previewSegments.map((segment) => segment.text).join(""),
+          previewSegments,
+          type: "note",
+          payload: note,
+        };
+      });
 
-  async function submitActionLog(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+    return [...taskResults, ...noteResults];
+  }, [notes, searchQuery, tasks]);
 
-    const trimmedTarget = target.trim();
-    const trimmedDescription = description.trim();
-
-    if (!trimmedTarget || !trimmedDescription) {
-      return;
-    }
-
-    const saved = await onAddActionLog({
-      target: trimmedTarget,
-      description: trimmedDescription,
-      time,
-    });
-
-    if (!saved) {
-      return;
-    }
-
-    setTarget("");
-    setDescription("");
-    setTime(getCurrentTime());
-    setIsTimeEditing(false);
-    setIsTimeManuallySet(false);
-  }
+  const hasResults = results.length > 0;
 
   return (
     <section className="flex min-h-[620px] min-w-0 flex-col rounded-[12px] p-4 card-shadow card-paper-background">
-      <header className="mb-5 shrink-0">
+      <header className="mb-4 shrink-0">
         <h1 className="text-[15px] font-bold tracking-[-0.02em] text-slate-800">
-          오늘의 조치 일지
+          검색
         </h1>
       </header>
 
-      <form className="mb-6 shrink-0 space-y-2" onSubmit={submitActionLog}>
-        <input
-          type="text"
-          value={target}
-          onChange={(event) => setTarget(event.target.value)}
-          placeholder="사번 또는 부서/이름"
-          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-400/10"
-        />
+      <div className="mb-4 shrink-0">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => window.setTimeout(() => setIsFocused(false), 120)}
+            placeholder="진행업무 / 스티커를 검색하세요"
+            className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 pr-9 text-[13px] font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-400/10"
+          />
 
-        <input
-          type="text"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          placeholder="조치 내용을 입력하세요"
-          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-400/10"
-        />
+          {searchQuery.trim() && (
+            <button
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => {
+                onSearchQueryChange("");
+                const input = document.activeElement as HTMLInputElement | null;
 
-        <div className="flex h-9 gap-2">
-          <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-400/10">
-            {isTimeEditing ? (
-              <input
-                type="time"
-                value={time}
-                autoFocus
-                onChange={(event) => {
-                  setTime(event.target.value);
-                  setIsTimeManuallySet(true);
-                }}
-                onBlur={() => setIsTimeEditing(false)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    setIsTimeEditing(false);
-                  }
-
-                  if (event.key === "Escape") {
-                    setIsTimeEditing(false);
-                  }
-                }}
-                className="h-full w-full bg-transparent px-3 text-center text-[13px] font-semibold tabular-nums text-slate-700 outline-none"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsTimeEditing(true)}
-                aria-label="기록 시간 수정"
-                className="h-full w-full px-3 text-[13px] font-semibold tabular-nums text-slate-700 transition hover:bg-slate-50"
-              >
-                {time}
-              </button>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="shrink-0 rounded-lg bg-strong px-4 text-[13px] font-semibold text-on-strong transition hover:bg-strong-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving ? "저장 중" : "기록"}
-          </button>
-        </div>
-      </form>
-
-      {errorMessage && (
-        <p className="-mt-3 mb-3 text-[12px] font-medium text-red-600">
-          {errorMessage}
-        </p>
-      )}
-
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 min-w-0 flex-col">
-          <div className="grid shrink-0 grid-cols-[52px_88px_minmax(0,1fr)_28px] items-center rounded-lg bg-slate-100/70 px-2 py-2 text-[14px] font-semibold text-slate-500">
-            <span>시간</span>
-            <span>대상</span>
-            <span>작업 내용</span>
-            <span aria-hidden="true" />
-          </div>
-
-          {isLoading ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center">
-              <p className="text-[14px] font-medium text-slate-400">
-                조치 일지를 불러오는 중입니다.
-              </p>
-            </div>
-          ) : actionLogs.length > 0 ? (
-            <div className="min-h-0 flex-1 overflow-y-auto py-1 scrollbar-soft">
-              {actionLogs.map((actionLog) => (
-                <div
-                  key={actionLog.id}
-                  className="group grid min-w-0 grid-cols-[52px_88px_minmax(0,1fr)_28px] items-center rounded-lg px-2 py-2.5 text-[14px] text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  <span className="tabular-nums text-slate-500">
-                    {actionLog.time}
-                  </span>
-
-                  <span
-                    className="min-w-0 truncate pr-2 font-medium text-slate-700"
-                    title={actionLog.target}
-                  >
-                    {actionLog.target}
-                  </span>
-
-                  <span
-                    className="min-w-0 truncate pr-2 text-slate-600"
-                    title={actionLog.description}
-                  >
-                    {actionLog.description}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => void onDeleteActionLog(actionLog.id)}
-                    aria-label="조치 기록 삭제"
-                    className="mx-auto flex size-6 items-center justify-center rounded-md text-sm text-slate-300 opacity-0 transition group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-700 focus:opacity-100 focus:outline-none"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex min-h-0 flex-1 items-center justify-center">
-              <div className="text-center">
-                <p className="text-[14px] font-medium text-slate-500">
-                  아직 기록된 조치가 없습니다.
-                </p>
-
-                <p className="mt-1 text-[13px] text-slate-400">
-                  {createLocalDateFromKey(viewDate).getMonth() + 1}월{" "}
-                  {createLocalDateFromKey(viewDate).getDate()}일의 조치를
-                  기록하세요.
-                </p>
-              </div>
-            </div>
+                if (input && input instanceof HTMLInputElement) {
+                  input.blur();
+                }
+              }}
+              aria-label="검색어 지우기"
+              className="absolute right-2.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full bg-slate-200 text-[11px] font-bold text-slate-600 transition hover:bg-slate-300"
+            >
+              ×
+            </button>
           )}
         </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-slate-50/50">
+        {!searchQuery.trim() ? (
+          <div className="flex h-full min-h-[420px] items-center justify-center px-4 text-center">
+            <p className="text-[13px] leading-6 text-slate-400">
+              {isFocused
+                ? "검색어를 입력하면 업무와 스티커를 같이 찾을 수 있습니다."
+                : "진행업무와 스티커 내용을 함께 검색할 수 있습니다."}
+            </p>
+          </div>
+        ) : hasResults ? (
+          <div className="flex h-full min-h-0 flex-col overflow-y-auto p-2 scrollbar-soft">
+            {results.map((result) => (
+              <button
+                key={`${result.type}-${result.id}`}
+                type="button"
+                onClick={() => {
+                  if (result.type === "task") {
+                    onOpenTaskResult(result.payload as ProcessTask);
+                    return;
+                  }
+
+                  onOpenNoteResult(result.payload as StickyNote);
+                }}
+                className="mb-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <div className="mb-1 flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                    {result.type === "task" ? "업무" : "스티커"}
+                  </span>
+                  <span className="min-w-0 truncate text-[12px] text-slate-400">
+                    {result.meta}
+                  </span>
+                </div>
+                <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[14px] font-semibold text-slate-800">
+                  {result.previewSegments.map((segment, index) =>
+                    segment.match ? (
+                      <mark
+                        key={`${result.id}-${index}`}
+                        className="rounded bg-yellow-300/75 px-0.5 text-slate-900 dark:bg-yellow-500/80 dark:text-white"
+                      >
+                        {segment.text}
+                      </mark>
+                    ) : (
+                      <span key={`${result.id}-${index}`}>{segment.text}</span>
+                    ),
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex h-full min-h-[420px] items-center justify-center px-4 text-center">
+            <p className="text-[13px] text-slate-400">검색 결과가 없습니다.</p>
+          </div>
+        )}
       </div>
     </section>
   );

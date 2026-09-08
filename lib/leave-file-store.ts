@@ -66,6 +66,18 @@ async function ensureLeaveFile() {
   }
 }
 
+async function backupExistingFile(filePath: string) {
+  try {
+    await rename(filePath, `${filePath}.${Date.now()}.bak`);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+}
+
 async function writeLeaveFile(data: LeaveFile) {
   await mkdir(LEAVE_DIRECTORY, {
     recursive: true,
@@ -76,6 +88,14 @@ async function writeLeaveFile(data: LeaveFile) {
     updatedAt: new Date().toISOString(),
     days: sortLeaveDays(data.days),
   };
+
+  if (
+    await readFile(LEAVE_FILE_PATH, "utf-8")
+      .then(() => true)
+      .catch(() => false)
+  ) {
+    await backupExistingFile(LEAVE_FILE_PATH);
+  }
 
   /*
    * 임시 파일을 먼저 만든 뒤 실제 파일로 교체합니다.

@@ -14,6 +14,7 @@ type ProcessTaskCardProps = {
   task: ProcessTask;
   pendingStatus: WorkStatus;
   isExpanded: boolean;
+  isHighlighted?: boolean;
   onToggle: () => void;
   onUpdateMemo: (memo: string) => void;
   onPendingStatusChange: (status: WorkStatus) => void;
@@ -24,6 +25,7 @@ export default function ProcessTaskCard({
   task,
   pendingStatus,
   isExpanded,
+  isHighlighted = false,
   onToggle,
   onUpdateMemo,
   onPendingStatusChange,
@@ -36,6 +38,7 @@ export default function ProcessTaskCard({
       className={[
         "overflow-hidden rounded-xl",
         "border border-slate-200/70",
+        isHighlighted ? "border-yellow-300" : "",
         isExpanded
           ? [
               "border-slate-300/80",

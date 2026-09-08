@@ -4,80 +4,29 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { StickyNote } from "@/components/sticky-note/sticky-note.types";
 import { useWorkspaceDate } from "@/components/workspace/WorkspaceDateProvider";
 
 import DailyActionLog from "./DailyActionLog";
 import ProcessTaskList from "./ProcessTaskList";
 import type {
-  DailyActionLogItem,
-  DailyActionLogDraft,
   ProcessTask,
   ProcessTaskDraft,
   WorkStatus,
 } from "./dashboard.types";
 
 export default function Dashboard() {
-  const { viewDate } = useWorkspaceDate();
-  const [actionLogs, setActionLogs] = useState<DailyActionLogItem[]>([]);
-  const [isActionLogsLoading, setIsActionLogsLoading] = useState(true);
-  const [isActionLogSaving, setIsActionLogSaving] = useState(false);
-  const [actionLogError, setActionLogError] = useState<string | null>(null);
+  const { viewDate, setViewDate } = useWorkspaceDate();
 
   const [tasks, setTasks] = useState<ProcessTask[]>([]);
+  const [allTasks, setAllTasks] = useState<ProcessTask[]>([]);
+  const [allNotes, setAllNotes] = useState<StickyNote[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
   const [isTasksLoading, setIsTasksLoading] = useState(true);
   const [isTaskSaving, setIsTaskSaving] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
   const memoSaveTimers = useRef(new Map<string, number>());
-
-  const fetchActionLogs = useCallback(
-    async (signal?: AbortSignal) => {
-      setIsActionLogsLoading(true);
-      setActionLogError(null);
-
-      try {
-        const response = await fetch(
-          `/api/daily-action-logs/by-date?date=${encodeURIComponent(viewDate)}`,
-          {
-            cache: "no-store",
-            signal,
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("조치 일지를 불러오지 못했습니다.");
-        }
-
-        const data = (await response.json()) as DailyActionLogItem[];
-        setActionLogs(Array.isArray(data) ? data : []);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        console.error("조치 일지 조회 실패:", error);
-        setActionLogs([]);
-        setActionLogError("조치 일지를 불러오지 못했습니다.");
-      } finally {
-        if (!signal?.aborted) {
-          setIsActionLogsLoading(false);
-        }
-      }
-    },
-    [viewDate],
-  );
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const requestTimer = window.setTimeout(() => {
-      void fetchActionLogs(controller.signal);
-    }, 0);
-
-    return () => {
-      window.clearTimeout(requestTimer);
-      controller.abort();
-    };
-  }, [fetchActionLogs]);
 
   const fetchTasks = useCallback(
     async (signal?: AbortSignal) => {
@@ -113,6 +62,38 @@ export default function Dashboard() {
     [viewDate],
   );
 
+  const fetchAllTasks = useCallback(async () => {
+    try {
+      const response = await fetch("/api/process-tasks", { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error("전체 업무 검색을 불러오지 못했습니다.");
+      }
+
+      const data = (await response.json()) as ProcessTask[];
+      setAllTasks(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("전체 업무 검색 조회 실패:", error);
+      setAllTasks([]);
+    }
+  }, []);
+
+  const fetchAllNotes = useCallback(async () => {
+    try {
+      const response = await fetch("/api/sticky-notes", { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error("전체 스티커 검색을 불러오지 못했습니다.");
+      }
+
+      const data = (await response.json()) as StickyNote[];
+      setAllNotes(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("전체 스티커 검색 조회 실패:", error);
+      setAllNotes([]);
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     const requestTimer = window.setTimeout(() => {
@@ -126,6 +107,11 @@ export default function Dashboard() {
   }, [fetchTasks]);
 
   useEffect(() => {
+    void fetchAllTasks();
+    void fetchAllNotes();
+  }, [fetchAllNotes, fetchAllTasks]);
+
+  useEffect(() => {
     const timers = memoSaveTimers.current;
 
     return () => {
@@ -133,66 +119,6 @@ export default function Dashboard() {
       timers.clear();
     };
   }, []);
-
-  async function addActionLog(actionLog: DailyActionLogDraft) {
-    setIsActionLogSaving(true);
-    setActionLogError(null);
-
-    try {
-      const response = await fetch("/api/daily-action-logs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          date: viewDate,
-          ...actionLog,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("조치 기록을 저장하지 못했습니다.");
-      }
-
-      const createdLog = (await response.json()) as DailyActionLogItem;
-      setActionLogs((currentActionLogs) =>
-        [createdLog, ...currentActionLogs].sort((first, second) =>
-          second.time.localeCompare(first.time),
-        ),
-      );
-
-      return true;
-    } catch (error) {
-      console.error("조치 기록 저장 실패:", error);
-      setActionLogError("조치 기록을 저장하지 못했습니다.");
-
-      return false;
-    } finally {
-      setIsActionLogSaving(false);
-    }
-  }
-
-  async function deleteActionLog(actionLogId: string) {
-    setActionLogError(null);
-
-    try {
-      const response = await fetch(
-        `/api/daily-action-logs/${actionLogId}?date=${encodeURIComponent(viewDate)}`,
-        { method: "DELETE" },
-      );
-
-      if (!response.ok) {
-        throw new Error("조치 기록을 삭제하지 못했습니다.");
-      }
-
-      setActionLogs((currentActionLogs) =>
-        currentActionLogs.filter((actionLog) => actionLog.id !== actionLogId),
-      );
-    } catch (error) {
-      console.error("조치 기록 삭제 실패:", error);
-      setActionLogError("조치 기록을 삭제하지 못했습니다.");
-    }
-  }
 
   async function addTask(taskDraft: ProcessTaskDraft) {
     setIsTaskSaving(true);
@@ -308,16 +234,56 @@ export default function Dashboard() {
     }
   }
 
+  function handleSearchQueryChange(nextQuery: string) {
+    setSearchQuery(nextQuery);
+
+    if (!nextQuery.trim()) {
+      setHighlightTaskId(null);
+      window.dispatchEvent(
+        new CustomEvent("local-work-dashboard:clear-search-highlights"),
+      );
+    }
+  }
+
+  function handleOpenTaskFromSearch(task: ProcessTask) {
+    setViewDate(task.createdDate);
+    setHighlightTaskId(task.id);
+    window.dispatchEvent(
+      new CustomEvent("local-work-dashboard:jump-task", {
+        detail: { taskId: task.id },
+      }),
+    );
+  }
+
+  function handleOpenNoteFromSearch(note: StickyNote) {
+    const dateKey = new Date(note.startDate);
+    const nextDateKey = `${dateKey.getFullYear()}-${String(
+      dateKey.getMonth() + 1,
+    ).padStart(2, "0")}-${String(dateKey.getDate()).padStart(2, "0")}`;
+
+    setViewDate(nextDateKey);
+    setHighlightTaskId(null);
+    window.dispatchEvent(
+      new CustomEvent("local-work-dashboard:jump-note", {
+        detail: {
+          noteId: note.id,
+          dateKey: nextDateKey,
+          query: searchQuery,
+        },
+      }),
+    );
+  }
+
   return (
     <div className="mx-auto grid w-full max-w-[1800px] grid-cols-1 gap-3 items-start md:grid-cols-[minmax(320px,1fr)_minmax(0,2fr)]">
       <DailyActionLog
         viewDate={viewDate}
-        actionLogs={actionLogs}
-        isLoading={isActionLogsLoading}
-        isSaving={isActionLogSaving}
-        errorMessage={actionLogError}
-        onAddActionLog={addActionLog}
-        onDeleteActionLog={deleteActionLog}
+        tasks={allTasks}
+        notes={allNotes}
+        searchQuery={searchQuery}
+        onSearchQueryChange={handleSearchQueryChange}
+        onOpenTaskResult={handleOpenTaskFromSearch}
+        onOpenNoteResult={handleOpenNoteFromSearch}
       />
 
       <ProcessTaskList
@@ -325,6 +291,7 @@ export default function Dashboard() {
         isLoading={isTasksLoading}
         isSaving={isTaskSaving}
         errorMessage={taskError}
+        highlightTaskId={highlightTaskId}
         onAddTask={addTask}
         onUpdateTaskMemo={updateTaskMemo}
         onUpdateTaskStatus={updateTaskStatus}

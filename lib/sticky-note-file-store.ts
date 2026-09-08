@@ -1,6 +1,13 @@
 // lib/sticky-note-file-store.ts
 
-import { mkdir, readFile, readdir, unlink, writeFile } from "fs/promises";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  unlink,
+  writeFile,
+} from "fs/promises";
 import path from "path";
 
 import type {
@@ -12,13 +19,56 @@ const ROOT_DIR = path.join(process.cwd(), "data", "sticky-notes");
 const NOTES_DIR = path.join(ROOT_DIR, "notes");
 const INDEX_FILE_PATH = path.join(ROOT_DIR, "index.json");
 
+async function backupExistingFile(filePath: string) {
+  try {
+    await rename(filePath, `${filePath}.${Date.now()}.bak`);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+async function writeJsonAtomically(filePath: string, value: unknown) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+
+  if (await fileExists(filePath)) {
+    await backupExistingFile(filePath);
+  }
+
+  const temporaryPath = `${filePath}.${crypto.randomUUID()}.tmp`;
+
+  await writeFile(temporaryPath, JSON.stringify(value, null, 2), "utf-8");
+  await rename(temporaryPath, filePath);
+}
+
+async function fileExists(filePath: string) {
+  try {
+    await readFile(filePath, "utf-8");
+    return true;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
 async function ensureStore() {
   await mkdir(NOTES_DIR, { recursive: true });
 
   try {
     await readFile(INDEX_FILE_PATH, "utf-8");
-  } catch {
-    await writeFile(INDEX_FILE_PATH, JSON.stringify([], null, 2), "utf-8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      await writeJsonAtomically(INDEX_FILE_PATH, []);
+      return;
+    }
+
+    throw error;
   }
 }
 
@@ -105,9 +155,16 @@ async function readIndex(): Promise<StickyNoteIndexItem[]> {
   const content = await readFile(INDEX_FILE_PATH, "utf-8");
 
   try {
-    return JSON.parse(content) as StickyNoteIndexItem[];
-  } catch {
-    return [];
+    const parsed = JSON.parse(content) as unknown;
+
+    if (!Array.isArray(parsed)) {
+      throw new Error("스티커 인덱스 형식이 올바르지 않습니다.");
+    }
+
+    return parsed as StickyNoteIndexItem[];
+  } catch (error) {
+    console.error("스티커 인덱스 읽기 실패:", error);
+    throw error;
   }
 }
 
@@ -132,12 +189,7 @@ async function cleanOrphanedIndexItems() {
 
 async function writeIndex(indexItems: StickyNoteIndexItem[]) {
   await ensureStore();
-
-  await writeFile(
-    INDEX_FILE_PATH,
-    JSON.stringify(indexItems, null, 2),
-    "utf-8",
-  );
+  await writeJsonAtomically(INDEX_FILE_PATH, indexItems);
 }
 
 async function upsertIndexItem(note: StickyNote) {
@@ -205,8 +257,12 @@ export async function readStickyNoteById(
     const content = await readFile(filePath, "utf-8");
 
     return JSON.parse(content) as StickyNote;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return null;
+    }
+
+    throw error;
   }
 }
 
@@ -356,7 +412,7 @@ export async function writeStickyNote(note: StickyNote): Promise<StickyNote> {
 
   const filePath = createNoteFilePath(updatedNote.id);
 
-  await writeFile(filePath, JSON.stringify(updatedNote, null, 2), "utf-8");
+  await writeJsonAtomically(filePath, updatedNote);
   await upsertIndexItem(updatedNote);
 
   return updatedNote;
