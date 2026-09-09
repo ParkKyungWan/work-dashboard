@@ -66,7 +66,10 @@ const buildPreviewSegments = (
   }
 
   const start = Math.max(0, matchIndex - 22);
-  const end = Math.min(normalizedSource.length, matchIndex + normalizedQuery.length + 22);
+  const end = Math.min(
+    normalizedSource.length,
+    matchIndex + normalizedQuery.length + 22,
+  );
   let snippet = normalizedSource.slice(start, end).trim();
 
   if (start > 0) {
@@ -85,7 +88,10 @@ const buildPreviewSegments = (
   }
 
   const before = snippet.slice(0, snippetMatchIndex);
-  const matchText = snippet.slice(snippetMatchIndex, snippetMatchIndex + normalizedQuery.length);
+  const matchText = snippet.slice(
+    snippetMatchIndex,
+    snippetMatchIndex + normalizedQuery.length,
+  );
   const after = snippet.slice(snippetMatchIndex + normalizedQuery.length);
 
   return [

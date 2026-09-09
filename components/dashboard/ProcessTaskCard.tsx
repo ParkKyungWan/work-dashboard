@@ -32,6 +32,7 @@ export default function ProcessTaskCard({
   onDelete,
 }: ProcessTaskCardProps) {
   const isOnHold = pendingStatus === "ON_HOLD";
+  const isCompleted = task.status === "COMPLETED";
 
   return (
     <article
@@ -72,7 +73,14 @@ export default function ProcessTaskCard({
           ))}
         </span>
 
-        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-800">
+        <span
+          className={[
+            "min-w-0 flex-1 truncate text-[15px] font-semibold",
+            isCompleted
+              ? "text-slate-400 opacity-70 line-through decoration-slate-400 decoration-2"
+              : "text-slate-800",
+          ].join(" ")}
+        >
           {task.title}
         </span>
 
