@@ -92,6 +92,7 @@ export default function ProcessTaskCard({
           className={[
             "shrink-0 rounded-md px-2 py-1 text-[13px] font-semibold",
             getStatusClassName(task.status),
+            task.status === "COMPLETED" ? "opacity-60" : "",
           ].join(" ")}
         >
           {getStatusLabel(task.status, task.createdDate, task.completedDate)}

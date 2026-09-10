@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Neutral design tokens */
   --background: #f1f2f3;
@@ -261,8 +263,7 @@ button {
 }
 
 .program-window-opening {
-  animation: program-window-genie-in 260ms cubic-bezier(0.22, 0.8, 0.24, 1)
-    both;
+  animation: program-window-genie-in 260ms cubic-bezier(0.22, 0.8, 0.24, 1) both;
 }
 
 .program-window-closing {
