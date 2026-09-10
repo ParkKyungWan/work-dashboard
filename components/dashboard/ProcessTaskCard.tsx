@@ -33,6 +33,8 @@ export default function ProcessTaskCard({
 }: ProcessTaskCardProps) {
   const isOnHold = pendingStatus === "ON_HOLD";
   const isCompleted = task.status === "COMPLETED";
+  const isMutedStatus =
+    task.status === "COMPLETED" || task.status === "ON_HOLD";
 
   return (
     <article
@@ -46,7 +48,7 @@ export default function ProcessTaskCard({
               "ring-1 ring-slate-200/60",
               "shadow-[0_4px_12px_rgba(15,23,42,0.07)]",
             ].join(" ")
-          : task.status === "COMPLETED"
+          : isMutedStatus
             ? ["shadow-[inset_0_1px_3px_rgba(15,23,42,0.07)]"].join(" ")
             : [
                 "bg-white",
@@ -78,7 +80,9 @@ export default function ProcessTaskCard({
             "min-w-0 flex-1 truncate text-[15px] font-semibold",
             isCompleted
               ? "text-slate-400 opacity-70 line-through decoration-slate-400 decoration-2"
-              : "text-slate-800",
+              : task.status === "ON_HOLD"
+                ? "text-slate-400 opacity-70"
+                : "text-slate-800",
           ].join(" ")}
         >
           {task.title}

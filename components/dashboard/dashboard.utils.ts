@@ -65,11 +65,7 @@ export function getStatusClassName(status: WorkStatus) {
     return "bg-[#fed7aa] text-[#2b241b]";
   }
 
-  if (status === "ON_HOLD") {
-    return "bg-slate-200 text-slate-700";
-  }
-
-  if (status === "COMPLETED") {
+  if (status === "ON_HOLD" || status === "COMPLETED") {
     return "bg-zinc-100 text-zinc-500";
   }
 
